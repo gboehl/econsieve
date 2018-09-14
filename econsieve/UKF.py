@@ -26,6 +26,7 @@ from numpy import eye, zeros, dot, isscalar, outer, empty
 from .unscented_transform import unscented_transform
 from .stats import logpdf
 from .common import pretty_str
+from warnings import warn
 
 
 class UnscentedKalmanFilter(object):
@@ -405,11 +406,11 @@ class UnscentedKalmanFilter(object):
         # pass prior sigmas through h(x) to get measurement sigmas
         # the shape of sigmas_h will vary if the shape of z varies, so
         # recreate each time
-        sigmas_h = []
-        for s in self.sigmas_f:
-            sigmas_h.append(hx(s, **hx_args))
+        # sigmas_h = []
+        # for s in self.sigmas_f:
+            # sigmas_h.append(hx(s, **hx_args))
 
-        self.sigmas_h = np.atleast_2d(sigmas_h)
+        # self.sigmas_h = np.atleast_2d(sigmas_h)
 
         # mean and covariance of prediction passed through unscented transform
         zp, self.S = UT(self.sigmas_h, self.Wm, self.Wc, R, self.z_mean, self.residual_z)
@@ -465,9 +466,17 @@ class UnscentedKalmanFilter(object):
         sigmas = self.points_fn.sigma_points(self.x, self.P)
 
         for i, s in enumerate(sigmas):
-            self.sigmas_f[i], flag  = fx(s, **fx_args)
+
+            x, flag  = fx(s, **fx_args)
+
+            self.sigmas_f[i]    = x
+            self.sigmas_h[i]    = self.hx(x)
+
             if flag:
-                self.flag  = True
+                if self.flag and self.flag is not flag:
+                    self.flag   = 3
+                else:
+                    self.flag   = flag
 
     def batch_filter(self, zs, Rs=None, UT=None, saver=None):
         """
@@ -549,29 +558,28 @@ class UnscentedKalmanFilter(object):
         # mean estimates from Kalman Filter
         if self.x.ndim == 1:
             means           = empty((z_n, self._dim_x))
-            # innovations     = empty((z_n, self._dim_x))
         else:
             means           = empty((z_n, self._dim_x, 1))
-            # innovations     = empty((z_n, self._dim_x, 1))
 
         # state covariances from Kalman Filter
         covariances = empty((z_n, self._dim_x, self._dim_x))
 
+        ll  = 0
         for i, (z, r) in enumerate(zip(zs, Rs)):
             self.predict(UT=UT)
             self.update(z, r, UT=UT)
             means[i, :] = self.x
-            # innovations[i, :] = self.x - self.x_prior
             covariances[i, :, :] = self.P
+            ll  += self.log_likelihood
 
             if saver is not None:
                 saver.save()
 
         if self.flag:
-            warnings.warn('Error in transition function during filtering')
+            warn('Error in transition function during filtering. Code '+str(self.flag))
 
         # return (means, covariances, innovations)
-        return (means, covariances)
+        return (means, covariances, ll)
 
     def rts_smoother(self, Xs, Ps, Qs=None, UT=None):
         """
@@ -641,7 +649,6 @@ class UnscentedKalmanFilter(object):
 
         xs, ps = Xs.copy(), Ps.copy()
         sigmas_f = empty((num_sigmas, dim_x))
-        # eps     = np.empty_like(xs)
 
         for k in reversed(range(n-1)):
             # create sigma points from state estimate, pass through state func
@@ -649,7 +656,9 @@ class UnscentedKalmanFilter(object):
             for i in range(num_sigmas):
                 sigmas_f[i], flag   = self.fx(sigmas[i])
                 if flag:
-                    self.flag   = True
+                    self.flag   = flag
+                    if self.flag is not self.flag:
+                        self.flag   = 3
 
             xb, Pb = UT(
                 sigmas_f, self.Wm, self.Wc, self.Q,
@@ -671,7 +680,7 @@ class UnscentedKalmanFilter(object):
             Ks[k] = K
         
         if self.flag:
-            warnings.warn('Errors in transition function during smoothing')
+            warn('Errors in transition function during smoothing. Code '+str(self.flag))
 
         return (xs, ps, Ks)
 
