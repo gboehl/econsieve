@@ -274,7 +274,6 @@ class UnscentedKalmanFilter(object):
         self._dim_x = dim_x
         self._dim_z = dim_z
         self.points_fn = points
-        self._num_sigmas = points.num_sigmas()
         self.hx = hx
         self.fx = fx
         self.x_mean = x_mean_fn
@@ -286,7 +285,7 @@ class UnscentedKalmanFilter(object):
         self._mahalanobis = None
 
         # weights for the means and covariances.
-        self.Wm, self.Wc = points.Wm, points.Wc
+        # self.Wm, self.Wc = points.Wm, points.Wc
 
         if residual_x is None:
             self.residual_x = np.subtract
@@ -301,8 +300,8 @@ class UnscentedKalmanFilter(object):
         # sigma points transformed through f(x) and h(x)
         # variables for efficiency so we don't recreate every update
 
-        self.sigmas_f = empty((self._num_sigmas, self._dim_x))
-        self.sigmas_h = empty((self._num_sigmas, self._dim_z))
+        # self.sigmas_f = empty((self._num_sigmas, self._dim_x))
+        # self.sigmas_h = empty((self._num_sigmas, self._dim_z))
 
         self.K = np.empty((dim_x, dim_z))    # Kalman gain
         self.y = np.empty((dim_z))           # residual
@@ -403,25 +402,19 @@ class UnscentedKalmanFilter(object):
         elif isscalar(R):
             R = eye(self._dim_z) * R
 
-        # pass prior sigmas through h(x) to get measurement sigmas
-        # the shape of sigmas_h will vary if the shape of z varies, so
-        # recreate each time
-        # sigmas_h = []
-        # for s in self.sigmas_f:
-            # sigmas_h.append(hx(s, **hx_args))
-
-        # self.sigmas_h = np.atleast_2d(sigmas_h)
-
         # mean and covariance of prediction passed through unscented transform
         zp, self.S = UT(self.sigmas_h, self.Wm, self.Wc, R, self.z_mean, self.residual_z)
-        self.SI = self.inv(self.S)
+
 
         # compute cross variance of the state and the measurements
         Pxz = self.cross_variance(self.x, zp, self.sigmas_f, self.sigmas_h)
 
+        self.y = self.residual_z(z, zp)   # residual
+
+        # self.SI = self.inv(self.S)
+        self.SI = np.linalg.pinv(self.S)
 
         self.K = dot(Pxz, self.SI)        # Kalman gain
-        self.y = self.residual_z(z, zp)   # residual
 
         # update Gaussian state estimate (x, P)
         self.x = self.x + dot(self.K, self.y)
@@ -463,7 +456,14 @@ class UnscentedKalmanFilter(object):
             fx = self.fx
 
         # calculate sigma points for given mean and covariance
-        sigmas = self.points_fn.sigma_points(self.x, self.P)
+        sigmas, self.Wc, self.Wm    = self.points_fn.sigma_points(self.x, self.P)
+
+        if not hasattr(self, 'sigmas_f'):
+            self.sigmas_f = empty((sigmas.shape[0], self._dim_x))
+            self.sigmas_h = empty((sigmas.shape[0], self._dim_z))
+        elif self.sigmas_f.shape[0] != sigmas.shape[0]:
+            self.sigmas_f = empty((sigmas.shape[0], self._dim_x))
+            self.sigmas_h = empty((sigmas.shape[0], self._dim_z))
 
         for i, s in enumerate(sigmas):
 
@@ -477,6 +477,7 @@ class UnscentedKalmanFilter(object):
                     self.flag   = 3
                 else:
                     self.flag   = flag
+
 
     def batch_filter(self, zs, Rs=None, UT=None, saver=None):
         """
@@ -645,14 +646,14 @@ class UnscentedKalmanFilter(object):
         # smoother gain
         Ks = empty((n, dim_x, dim_x))
 
-        num_sigmas = self._num_sigmas
-
         xs, ps = Xs.copy(), Ps.copy()
-        sigmas_f = empty((num_sigmas, dim_x))
+        # sigmas_f = empty((num_sigmas, dim_x))
 
         for k in reversed(range(n-1)):
             # create sigma points from state estimate, pass through state func
-            sigmas = self.points_fn.sigma_points(xs[k], ps[k])
+            sigmas, Wc, Wm  = self.points_fn.sigma_points(xs[k], ps[k])
+            num_sigmas  = sigmas.shape[0]
+            sigmas_f = empty((num_sigmas, dim_x))
             for i in range(num_sigmas):
                 sigmas_f[i], flag   = self.fx(sigmas[i])
                 if flag:
@@ -672,7 +673,8 @@ class UnscentedKalmanFilter(object):
                 Pxb += self.Wc[i] * outer(z, y)
 
             # compute gain
-            K = dot(Pxb, self.inv(Pb))
+            # K = dot(Pxb, self.inv(Pb))
+            K = dot(Pxb, np.linalg.pinv(Pb))
 
             # update the smoothed estimates
             xs[k] += dot(K, self.residual_x(xs[k+1], xb))

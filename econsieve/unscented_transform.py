@@ -98,12 +98,12 @@ def unscented_transform(sigmas, Wm, Wc, noise_cov=None,
 
     kmax, n = sigmas.shape
 
-    x = np.dot(Wm, sigmas)    # dot = \Sigma^n_1 (W[k]*Xi[k])
+    x = Wm @ sigmas
 
     # new covariance is the sum of the outer product of the residuals
     # times the weights
     y = sigmas - x[np.newaxis, :]
-    P = np.dot(y.T, np.dot(np.diag(Wc), y))
+    P = y.T*Wc @ y
 
     if noise_cov is not None:
         P += noise_cov
