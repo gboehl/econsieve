@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=invalid-name
 
 """Copyright 2015 Roger R Labbe Jr.
 
@@ -23,15 +22,64 @@ from math import log, exp, sqrt
 import sys
 import numpy as np
 from numpy import eye, zeros, dot, isscalar, outer, empty
-from .unscented_transform import unscented_transform
+from .unscented_transform import unscented_transform as UT
 from .stats import logpdf
 from .common import pretty_str
 from warnings import warn
+from numba import njit
 
+
+@njit(cache=True)
+def cross_variance(Wc, x, z, sigmas_f, sigmas_h):
+    """
+    Compute cross variance of the state `x` and measurement `z`.
+    """
+
+    Pxz = zeros((sigmas_f.shape[1], sigmas_h.shape[1]))
+    N = sigmas_f.shape[0]
+    for i in range(N):
+        dx = sigmas_f[i] - x
+        dz = sigmas_h[i] - z
+        # Pxz += self.Wc[i] * outer(dx, dz)
+        Pxz += Wc[i] * outer(dx, dz)
+    return Pxz
+
+@njit(cache=True)
+def update(z, R, P, x, Wc, Wm, sigmas_f, sigmas_h):
+    """
+    Update the UKF with the given measurements. On return,
+    x and P contain the new mean and covariance of the filter.
+
+    Parameters
+    ----------
+
+    z : numpy.array of shape (dim_z)
+        measurement vector
+
+    R : numpy.array((dim_z, dim_z)), optional
+        Measurement noise. 
+
+    """
+
+    # mean and covariance of prediction passed through unscented transform
+    zp, S = UT(sigmas_h, Wm, Wc, R)
+
+    # compute cross variance of the state and the measurements
+    Pxz = cross_variance(Wc, x, zp, sigmas_f, sigmas_h)
+
+    y = z - zp   # residual
+
+    SI = np.linalg.pinv(S)
+
+    K = dot(Pxz, SI)        # Kalman gain
+
+    # update Gaussian state estimate (x, P)
+    x = x + dot(K, y)
+    P = P - dot(K, dot(S, K.T))
+
+    return x, P, S, y
 
 class UnscentedKalmanFilter(object):
-    # pylint: disable=too-many-instance-attributes
-    # pylint: disable=invalid-name
     r"""
     Implements the Scaled Unscented Kalman filter (UKF) as defined by
     Simon Julier in [1], using the formulation provided by Wan and Merle
@@ -72,48 +120,6 @@ class UnscentedKalmanFilter(object):
         parameterization. See either of those for the required
         signature of this class if you want to implement your own.
 
-    x_mean_fn : callable  (sigma_points, weights), optional
-        Function that computes the mean of the provided sigma points
-        and weights. Use this if your state variable contains nonlinear
-        values such as angles which cannot be summed.
-
-        .. code-block:: Python
-
-            def state_mean(sigmas, Wm):
-                x = np.zeros(3)
-                sum_sin, sum_cos = 0., 0.
-
-                for i in range(len(sigmas)):
-                    s = sigmas[i]
-                    x[0] += s[0] * Wm[i]
-                    x[1] += s[1] * Wm[i]
-                    sum_sin += sin(s[2])*Wm[i]
-                    sum_cos += cos(s[2])*Wm[i]
-                x[2] = atan2(sum_sin, sum_cos)
-                return x
-
-    z_mean_fn : callable  (sigma_points, weights), optional
-        Same as x_mean_fn, except it is called for sigma points which
-        form the measurements after being passed through hx().
-
-    residual_x : callable (x, y), optional
-    residual_z : callable (x, y), optional
-        Function that computes the residual (difference) between x and y.
-        You will have to supply this if your state variable cannot support
-        subtraction, such as angles (359-1 degreees is 2, not 358). x and y
-        are state vectors, not scalars. One is for the state variable,
-        the other is for the measurement state.
-
-        .. code-block:: Python
-
-            def residual(a, b):
-                y = a[0] - b[0]
-                if y > np.pi:
-                    y -= 2*np.pi
-                if y < -np.pi:
-                    y = 2*np.pi
-                return y
-
     Attributes
     ----------
 
@@ -151,21 +157,6 @@ class UnscentedKalmanFilter(object):
 
     y : numpy.array
         innovation residual
-
-    log_likelihood : scalar
-        Log likelihood of last measurement update.
-
-    likelihood : float
-        likelihood of last measurment. Read only.
-
-        Computed from the log-likelihood. The log-likelihood can be very
-        small,  meaning a large negative value such as -28000. Taking the
-        exp() of that results in 0.0, which can break typical algorithms
-        which multiply by this value, so by default we always return a
-        number >= sys.float_info.min.
-
-    mahalanobis : float
-        mahalanobis distance of the measurement. Read only.
 
     inv : function, default numpy.linalg.inv
         If you prefer another inverse function, such as the Moore-Penrose
@@ -210,7 +201,6 @@ class UnscentedKalmanFilter(object):
     >>> for z in zs:
     >>>     kf.predict()
     >>>     kf.update(z)
-    >>>     print(kf.x, 'log-likelihood', kf.log_likelihood)
 
     For in depth explanations see my book Kalman and Bayesian Filters in Python
     https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python
@@ -252,10 +242,7 @@ class UnscentedKalmanFilter(object):
            Inference in Dynamic State-Space Models" (Doctoral dissertation)
     """
 
-    def __init__(self, dim_x, dim_z, hx, fx, points,
-                 x_mean_fn=None, z_mean_fn=None,
-                 residual_x=None,
-                 residual_z=None):
+    def __init__(self, dim_x, dim_z, hx, fx, points):
         """
         Create a Kalman filter. You are responsible for setting the
         various state variables to reasonable values; the defaults below will
@@ -263,12 +250,10 @@ class UnscentedKalmanFilter(object):
 
         """
 
-        #pylint: disable=too-many-arguments
-
         self.x = empty(dim_x)
         self.P = eye(dim_x)
-        self.x_prior = np.copy(self.x)
-        self.P_prior = np.copy(self.P)
+        # self.x_prior = np.copy(self.x)
+        # self.P_prior = np.copy(self.P)
         self.Q = eye(dim_x)
         self.R = eye(dim_z)
         self._dim_x = dim_x
@@ -276,44 +261,14 @@ class UnscentedKalmanFilter(object):
         self.points_fn = points
         self.hx = hx
         self.fx = fx
-        self.x_mean = x_mean_fn
-        self.z_mean = z_mean_fn
 
-        # Only computed only if requested via property
-        self._log_likelihood = log(sys.float_info.min)
-        self._likelihood = sys.float_info.min
-        self._mahalanobis = None
-
-        # weights for the means and covariances.
-        # self.Wm, self.Wc = points.Wm, points.Wc
-
-        if residual_x is None:
-            self.residual_x = np.subtract
-        else:
-            self.residual_x = residual_x
-
-        if residual_z is None:
-            self.residual_z = np.subtract
-        else:
-            self.residual_z = residual_z
-
-        # sigma points transformed through f(x) and h(x)
-        # variables for efficiency so we don't recreate every update
-
-        # self.sigmas_f = empty((self._num_sigmas, self._dim_x))
-        # self.sigmas_h = empty((self._num_sigmas, self._dim_z))
-
-        self.K = np.empty((dim_x, dim_z))    # Kalman gain
-        self.y = np.empty((dim_z))           # residual
         self.z = np.array([[None]*dim_z]).T  # measurement
-        self.S = np.empty((dim_z, dim_z))    # system uncertainty
-        self.SI = np.empty((dim_z, dim_z))   # inverse system uncertainty
 
         self.inv = np.linalg.inv
 
         # these will always be a copy of x,P after predict() is called
-        self.x_prior = self.x.copy()
-        self.P_prior = self.P.copy()
+        # self.x_prior = self.x.copy()
+        # self.P_prior = self.P.copy()
 
         # these will always be a copy of x,P after update() is called
         self.x_post = self.x.copy()
@@ -321,7 +276,7 @@ class UnscentedKalmanFilter(object):
 
         self.flag   = False
 
-    def predict(self, UT=None, fx=None, **fx_args):
+    def predict(self, fx=None, **fx_args):
         r"""
         Performs the predict step of the UKF. On return, self.x and
         self.P contain the predicted state (x) and covariance (P). '
@@ -336,112 +291,21 @@ class UnscentedKalmanFilter(object):
             State transition function. If not provided, the default
             function passed in during construction will be used.
 
-        UT : function(sigmas, Wm, Wc, noise_cov), optional
-            Optional function to compute the unscented transform for the sigma
-            points passed through hx. Typically the default function will
-            work - you can use x_mean_fn and z_mean_fn to alter the behavior
-            of the unscented transform.
-
         **fx_args : keyword arguments
             optional keyword arguments to be passed into f(x).
         """
-
-        if UT is None:
-            UT = unscented_transform
 
         # calculate sigma points for given mean and covariance
         self.compute_process_sigmas(fx, **fx_args)
 
         #and pass sigmas through the unscented transform to compute prior
-        self.x, self.P = UT(self.sigmas_f, self.Wm, self.Wc, self.Q,
-                            self.x_mean, self.residual_x)
+        self.x, self.P = UT(self.sigmas_f, self.Wm, self.Wc, self.Q)
 
         # save prior
-        self.x_prior = np.copy(self.x)
-        self.P_prior = np.copy(self.P)
-
-    def update(self, z, R=None, UT=None, hx=None, **hx_args):
-        """
-        Update the UKF with the given measurements. On return,
-        self.x and self.P contain the new mean and covariance of the filter.
-
-        Parameters
-        ----------
-
-        z : numpy.array of shape (dim_z)
-            measurement vector
-
-        R : numpy.array((dim_z, dim_z)), optional
-            Measurement noise. If provided, overrides self.R for
-            this function call.
-
-        UT : function(sigmas, Wm, Wc, noise_cov), optional
-            Optional function to compute the unscented transform for the sigma
-            points passed through hx. Typically the default function will
-            work - you can use x_mean_fn and z_mean_fn to alter the behavior
-            of the unscented transform.
-
-        **hx_args : keyword argument
-            arguments to be passed into h(x) after x -> h(x, **hx_args)
-        """
-
-        if z is None:
-            self.z = np.array([[None]*self._dim_z]).T
-            self.x_post = self.x.copy()
-            self.P_post = self.P.copy()
-            return
-
-        if hx is None:
-            hx = self.hx
-
-        if UT is None:
-            UT = unscented_transform
-
-        if R is None:
-            R = self.R
-        elif isscalar(R):
-            R = eye(self._dim_z) * R
-
-        # mean and covariance of prediction passed through unscented transform
-        zp, self.S = UT(self.sigmas_h, self.Wm, self.Wc, R, self.z_mean, self.residual_z)
+        # self.x_prior = np.copy(self.x)
+        # self.P_prior = np.copy(self.P)
 
 
-        # compute cross variance of the state and the measurements
-        Pxz = self.cross_variance(self.x, zp, self.sigmas_f, self.sigmas_h)
-
-        self.y = self.residual_z(z, zp)   # residual
-
-        # self.SI = self.inv(self.S)
-        self.SI = np.linalg.pinv(self.S)
-
-        self.K = dot(Pxz, self.SI)        # Kalman gain
-
-        # update Gaussian state estimate (x, P)
-        self.x = self.x + dot(self.K, self.y)
-        self.P = self.P - dot(self.K, dot(self.S, self.K.T))
-
-        # save measurement and posterior state
-        self.z = deepcopy(z)
-        self.x_post = self.x.copy()
-        self.P_post = self.P.copy()
-
-        # set to None to force recompute
-        self._log_likelihood = None
-        self._likelihood = None
-        self._mahalanobis = None
-
-    def cross_variance(self, x, z, sigmas_f, sigmas_h):
-        """
-        Compute cross variance of the state `x` and measurement `z`.
-        """
-
-        Pxz = zeros((sigmas_f.shape[1], sigmas_h.shape[1]))
-        N = sigmas_f.shape[0]
-        for i in range(N):
-            dx = self.residual_x(sigmas_f[i], x)
-            dz = self.residual_z(sigmas_h[i], z)
-            Pxz += self.Wc[i] * outer(dx, dz)
-        return Pxz
 
     def compute_process_sigmas(self, fx=None, **fx_args):
         """
@@ -479,7 +343,7 @@ class UnscentedKalmanFilter(object):
                     self.flag   = flag
 
 
-    def batch_filter(self, zs, Rs=None, UT=None, saver=None):
+    def batch_filter(self, zs, Rs=None):
         """
         Performs the UKF filter over the list of measurement in `zs`.
 
@@ -499,16 +363,6 @@ class UnscentedKalmanFilter(object):
             If it is a list of matrices or a 3D array where
             len(Rs) == len(zs), then it is treated as a list of R values, one
             per epoch. This allows you to have varying R per epoch.
-
-        UT : function(sigmas, Wm, Wc, noise_cov), optional
-            Optional function to compute the unscented transform for the sigma
-            points passed through hx. Typically the default function will
-            work - you can use x_mean_fn and z_mean_fn to alter the behavior
-            of the unscented transform.
-
-        saver : filterpy.common.Saver, optional
-            filterpy.common.Saver object. If provided, saver.save() will be
-            called after every epoch
 
         Returns
         -------
@@ -537,7 +391,6 @@ class UnscentedKalmanFilter(object):
             (xs, Ps, Ks) = ukf.rts_smoother(mu, cov)
 
         """
-        #pylint: disable=too-many-arguments
 
         try:
             z = zs[0]
@@ -553,36 +406,27 @@ class UnscentedKalmanFilter(object):
                     'each element in zs must be a 1D array of length {}'.format(self._dim_z))
 
         z_n = np.size(zs, 0)
-        if Rs is None:
-            Rs = [self.R] * z_n
 
         # mean estimates from Kalman Filter
-        if self.x.ndim == 1:
-            means           = empty((z_n, self._dim_x))
-        else:
-            means           = empty((z_n, self._dim_x, 1))
+        means           = empty((z_n, self._dim_x))
 
         # state covariances from Kalman Filter
         covariances = empty((z_n, self._dim_x, self._dim_x))
 
         ll  = 0
-        for i, (z, r) in enumerate(zip(zs, Rs)):
-            self.predict(UT=UT)
-            self.update(z, r, UT=UT)
+        for i, z in enumerate(zs):
+            self.predict()
+            self.x, self.P, S, y  = update(z, self.R, self.P, self.x, self.Wc, self.Wm, self.sigmas_f, self.sigmas_h)
             means[i, :] = self.x
             covariances[i, :, :] = self.P
-            ll  += self.log_likelihood
-
-            if saver is not None:
-                saver.save()
+            ll  += logpdf(x=y, cov=S)
 
         if self.flag:
             warn('Error in transition function during filtering. Code '+str(self.flag))
 
-        # return (means, covariances, innovations)
         return (means, covariances, ll)
 
-    def rts_smoother(self, Xs, Ps, Qs=None, UT=None):
+    def rts_smoother(self, Xs, Ps, Qs=None):
         """
         Runs the Rauch-Tung-Striebal Kalman smoother on a set of
         means and covariances computed by the UKF. The usual input
@@ -601,12 +445,6 @@ class UnscentedKalmanFilter(object):
         Qs: list-like collection of numpy.array, optional
             Process noise of the Kalman filter at each time step. Optional,
             if not provided the filter's self.Q will be used
-
-        UT : function(sigmas, Wm, Wc, noise_cov), optional
-            Optional function to compute the unscented transform for the sigma
-            points passed through hx. Typically the default function will
-            work - you can use x_mean_fn and z_mean_fn to alter the behavior
-            of the unscented transform.
 
         Returns
         -------
@@ -630,7 +468,6 @@ class UnscentedKalmanFilter(object):
             (mu, cov, _, _) = kalman.batch_filter(zs)
             (x, P, K) = rts_smoother(mu, cov, fk.F, fk.Q)
         """
-        #pylint: disable=too-many-locals, too-many-arguments
 
         if len(Xs) != len(Ps):
             raise ValueError('Xs and Ps must have the same length')
@@ -639,9 +476,6 @@ class UnscentedKalmanFilter(object):
 
         if Qs is None:
             Qs = [self.Q] * n
-
-        if UT is None:
-            UT = unscented_transform
 
         # smoother gain
         Ks = empty((n, dim_x, dim_x))
@@ -652,8 +486,9 @@ class UnscentedKalmanFilter(object):
         for k in reversed(range(n-1)):
             # create sigma points from state estimate, pass through state func
             sigmas, Wc, Wm  = self.points_fn.sigma_points(xs[k], ps[k])
-            num_sigmas  = sigmas.shape[0]
-            sigmas_f = empty((num_sigmas, dim_x))
+            num_sigmas      = sigmas.shape[0]
+            sigmas_f        = empty((num_sigmas, dim_x))
+
             for i in range(num_sigmas):
                 sigmas_f[i], flag   = self.fx(sigmas[i])
                 if flag:
@@ -661,23 +496,16 @@ class UnscentedKalmanFilter(object):
                     if self.flag is not self.flag:
                         self.flag   = 3
 
-            xb, Pb = UT(
-                sigmas_f, self.Wm, self.Wc, self.Q,
-                self.x_mean, self.residual_x)
+            xb, Pb = UT(sigmas_f, Wm, Wc, self.Q)
 
-            # compute cross variance
-            Pxb = 0
-            for i in range(num_sigmas):
-                y = self.residual_x(sigmas_f[i], xb)
-                z = self.residual_x(sigmas[i], Xs[k])
-                Pxb += self.Wc[i] * outer(z, y)
+            Pxb     = cross_variance(Wc, Xs[k], xb, sigmas, sigmas_f)
 
             # compute gain
             # K = dot(Pxb, self.inv(Pb))
             K = dot(Pxb, np.linalg.pinv(Pb))
 
             # update the smoothed estimates
-            xs[k] += dot(K, self.residual_x(xs[k+1], xb))
+            xs[k] += dot(K, xs[k+1] - xb)
             ps[k] += dot(K, ps[k+1] - Pb).dot(K.T)
             Ks[k] = K
         
@@ -686,68 +514,18 @@ class UnscentedKalmanFilter(object):
 
         return (xs, ps, Ks)
 
-    @property
-    def log_likelihood(self):
-        """
-        log-likelihood of the last measurement.
-        """
-        if self._log_likelihood is None:
-            self._log_likelihood = logpdf(x=self.y, cov=self.S)
-        return self._log_likelihood
-
-    @property
-    def likelihood(self):
-        """
-        Computed from the log-likelihood. The log-likelihood can be very
-        small,  meaning a large negative value such as -28000. Taking the
-        exp() of that results in 0.0, which can break typical algorithms
-        which multiply by this value, so by default we always return a
-        number >= sys.float_info.min.
-        """
-        if self._likelihood is None:
-            self._likelihood = exp(self.log_likelihood)
-            if self._likelihood == 0:
-                self._likelihood = sys.float_info.min
-        return self._likelihood
-
-    @property
-    def mahalanobis(self):
-        """"
-        Mahalanobis distance of measurement. E.g. 3 means measurement
-        was 3 standard deviations away from the predicted value.
-
-        Returns
-        -------
-        mahalanobis : float
-        """
-        if self._mahalanobis is None:
-            self._mahalanobis = sqrt(float(dot(dot(self.y.T, self.SI), self.y)))
-        return self._mahalanobis
-
     def __repr__(self):
         return '\n'.join([
             'UnscentedKalmanFilter object',
             pretty_str('x', self.x),
             pretty_str('P', self.P),
-            pretty_str('x_prior', self.x_prior),
-            pretty_str('P_prior', self.P_prior),
             pretty_str('Q', self.Q),
             pretty_str('R', self.R),
-            pretty_str('S', self.S),
-            pretty_str('K', self.K),
-            pretty_str('y', self.y),
-            pretty_str('log-likelihood', self.log_likelihood),
-            pretty_str('likelihood', self.likelihood),
-            pretty_str('mahalanobis', self.mahalanobis),
             pretty_str('sigmas_f', self.sigmas_f),
             pretty_str('h', self.sigmas_h),
             pretty_str('Wm', self.Wm),
             pretty_str('Wc', self.Wc),
-            pretty_str('residual_x', self.residual_x),
-            pretty_str('residual_z', self.residual_z),
             pretty_str('msqrt', self.msqrt),
             pretty_str('hx', self.hx),
             pretty_str('fx', self.fx),
-            pretty_str('x_mean', self.x_mean),
-            pretty_str('z_mean', self.z_mean)
             ])
