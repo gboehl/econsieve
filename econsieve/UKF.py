@@ -242,7 +242,7 @@ class UnscentedKalmanFilter(object):
            Inference in Dynamic State-Space Models" (Doctoral dissertation)
     """
 
-    def __init__(self, dim_x, dim_z, hx, fx, points):
+    def __init__(self, dim_x, dim_z, hx, fx, points, instant_warning = False):
         """
         Create a Kalman filter. You are responsible for setting the
         various state variables to reasonable values; the defaults below will
@@ -252,8 +252,6 @@ class UnscentedKalmanFilter(object):
 
         self.x = empty(dim_x)
         self.P = eye(dim_x)
-        # self.x_prior = np.copy(self.x)
-        # self.P_prior = np.copy(self.P)
         self.Q = eye(dim_x)
         self.R = eye(dim_z)
         self._dim_x = dim_x
@@ -262,15 +260,11 @@ class UnscentedKalmanFilter(object):
         self.hx = hx
         self.fx = fx
 
+        self.instant_warning    = instant_warning
+        
         self.z = np.array([[None]*dim_z]).T  # measurement
 
-        self.inv = np.linalg.inv
-
-        # these will always be a copy of x,P after predict() is called
-        # self.x_prior = self.x.copy()
-        # self.P_prior = self.P.copy()
-
-        # these will always be a copy of x,P after update() is called
+        ## these will always be a copy of x,P after update() is called
         self.x_post = self.x.copy()
         self.P_post = self.P.copy()
 
@@ -300,11 +294,6 @@ class UnscentedKalmanFilter(object):
 
         #and pass sigmas through the unscented transform to compute prior
         self.x, self.P = UT(self.sigmas_f, self.Wm, self.Wc, self.Q)
-
-        # save prior
-        # self.x_prior = np.copy(self.x)
-        # self.P_prior = np.copy(self.P)
-
 
 
     def compute_process_sigmas(self, fx=None, **fx_args):
@@ -481,10 +470,9 @@ class UnscentedKalmanFilter(object):
         Ks = empty((n, dim_x, dim_x))
 
         xs, ps = Xs.copy(), Ps.copy()
-        # sigmas_f = empty((num_sigmas, dim_x))
 
         for k in reversed(range(n-1)):
-            # create sigma points from state estimate, pass through state func
+            ## create sigma points from state estimate, pass through state func
             sigmas, Wc, Wm  = self.points_fn.sigma_points(xs[k], ps[k])
             num_sigmas      = sigmas.shape[0]
             sigmas_f        = empty((num_sigmas, dim_x))
@@ -492,6 +480,8 @@ class UnscentedKalmanFilter(object):
             for i in range(num_sigmas):
                 sigmas_f[i], flag   = self.fx(sigmas[i])
                 if flag:
+                    if self.instant_warning:
+                        warn('Errors in transition function during smoothing. Code '+str(flag))
                     self.flag   = flag
                     if self.flag is not self.flag:
                         self.flag   = 3
@@ -501,7 +491,6 @@ class UnscentedKalmanFilter(object):
             Pxb     = cross_variance(Wc, Xs[k], xb, sigmas, sigmas_f)
 
             # compute gain
-            # K = dot(Pxb, self.inv(Pb))
             K = dot(Pxb, np.linalg.pinv(Pb))
 
             # update the smoothed estimates
