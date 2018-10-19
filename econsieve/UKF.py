@@ -228,7 +228,7 @@ class UnscentedKalmanFilter(object):
            Inference in Dynamic State-Space Models" (Doctoral dissertation)
     """
 
-    def __init__(self, dim_x, dim_z, hx, fx, points):
+    def __init__(self, dim_x, dim_z, hx, fx, points, instant_warning = False):
         """
         Create a Kalman filter. You are responsible for setting the
         various state variables to reasonable values; the defaults below will
@@ -246,6 +246,7 @@ class UnscentedKalmanFilter(object):
         self.hx = hx
         self.fx = fx
 
+        self.instant_warning    = instant_warning
         self.flag   = False
 
     def predict(self, fx=None, **fx_args):
@@ -478,7 +479,7 @@ class UnscentedKalmanFilter(object):
 
         ll  = 0
         for k in reversed(range(n-1)):
-            # create sigma points from state estimate, pass through state func
+            ## create sigma points from state estimate, pass through state func
             sigmas, Wc, Wm  = self.points_fn.sigma_points(xs[k], ps[k])
             num_sigmas      = sigmas.shape[0]
             sigmas_f        = empty((num_sigmas, dim_x))
@@ -486,6 +487,8 @@ class UnscentedKalmanFilter(object):
             for i in range(num_sigmas):
                 sigmas_f[i], flag   = self.fx(sigmas[i])
                 if flag:
+                    if self.instant_warning:
+                        warn('Errors in transition function during smoothing. Code '+str(flag))
                     self.flag   = flag
                     if self.flag is not self.flag:
                         self.flag   = 3
