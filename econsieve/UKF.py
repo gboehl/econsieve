@@ -129,20 +129,6 @@ class UnscentedKalmanFilter(object):
     P : numpy.array(dim_x, dim_x)
         covariance estimate matrix
 
-    x_prior : numpy.array(dim_x)
-        Prior (predicted) state estimate. The *_prior and *_post attributes
-        are for convienence; they store the  prior and posterior of the
-        current epoch. Read Only.
-
-    P_prior : numpy.array(dim_x, dim_x)
-        Prior (predicted) state covariance matrix. Read Only.
-
-    x_post : numpy.array(dim_x)
-        Posterior (updated) state estimate. Read Only.
-
-    P_post : numpy.array(dim_x, dim_x)
-        Posterior (updated) state covariance matrix. Read Only.
-
     z : ndarray
         Last measurement used in update(). Read only.
 
@@ -252,8 +238,6 @@ class UnscentedKalmanFilter(object):
 
         self.x = empty(dim_x)
         self.P = eye(dim_x)
-        # self.x_prior = np.copy(self.x)
-        # self.P_prior = np.copy(self.P)
         self.Q = eye(dim_x)
         self.R = eye(dim_z)
         self._dim_x = dim_x
@@ -261,18 +245,6 @@ class UnscentedKalmanFilter(object):
         self.points_fn = points
         self.hx = hx
         self.fx = fx
-
-        self.z = np.array([[None]*dim_z]).T  # measurement
-
-        self.inv = np.linalg.inv
-
-        # these will always be a copy of x,P after predict() is called
-        # self.x_prior = self.x.copy()
-        # self.P_prior = self.P.copy()
-
-        # these will always be a copy of x,P after update() is called
-        self.x_post = self.x.copy()
-        self.P_post = self.P.copy()
 
         self.flag   = False
 
@@ -300,11 +272,6 @@ class UnscentedKalmanFilter(object):
 
         #and pass sigmas through the unscented transform to compute prior
         self.x, self.P = UT(self.sigmas_f, self.Wm, self.Wc, self.Q)
-
-        # save prior
-        # self.x_prior = np.copy(self.x)
-        # self.P_prior = np.copy(self.P)
-
 
 
     def compute_process_sigmas(self, fx=None, **fx_args):
@@ -405,6 +372,10 @@ class UnscentedKalmanFilter(object):
                 raise TypeError(
                     'each element in zs must be a 1D array of length {}'.format(self._dim_z))
 
+        ## necessary to re-initialize?
+        self.x = np.zeros(self._dim_x)
+        self.P = eye(self._dim_x)
+
         z_n = np.size(zs, 0)
 
         # mean estimates from Kalman Filter
@@ -425,6 +396,29 @@ class UnscentedKalmanFilter(object):
             warn('Error in transition function during filtering. Code '+str(self.flag))
 
         return (means, covariances, ll)
+
+    def get_ll(self, zs, Xs, Ps):
+        """
+        returns likelihood based on results from smoother
+        """
+
+        ll  = 0
+        for z, x, P in zip(zs, Xs, Ps):
+            self.x  = x
+            self.P  = P
+            # self.compute_process_sigmas()
+            self.predict()
+            ## genauer zwischen z & x differenzieren
+            ## möglicherweise braucht es doch ein predict um ein self.x zu produzieren?
+            ## reihenfolge beachten. wenn z_t auf basis von z_t vorhergesagt wird ist komisch
+            zp, S   = UT(self.sigmas_h, self.Wm, self.Wc, self.R)
+            y       = z - zp   # residual
+            ll      += logpdf(x=y, cov=S)
+
+        if self.flag:
+            warn('Error in transition function during filtering. Code '+str(self.flag))
+
+        return ll
 
     def rts_smoother(self, Xs, Ps, Qs=None):
         """
@@ -481,8 +475,8 @@ class UnscentedKalmanFilter(object):
         Ks = empty((n, dim_x, dim_x))
 
         xs, ps = Xs.copy(), Ps.copy()
-        # sigmas_f = empty((num_sigmas, dim_x))
 
+        ll  = 0
         for k in reversed(range(n-1)):
             # create sigma points from state estimate, pass through state func
             sigmas, Wc, Wm  = self.points_fn.sigma_points(xs[k], ps[k])
@@ -501,18 +495,21 @@ class UnscentedKalmanFilter(object):
             Pxb     = cross_variance(Wc, Xs[k], xb, sigmas, sigmas_f)
 
             # compute gain
-            # K = dot(Pxb, self.inv(Pb))
-            K = dot(Pxb, np.linalg.pinv(Pb))
+            K = Pxb @ np.linalg.pinv(Pb)
 
             # update the smoothed estimates
-            xs[k] += dot(K, xs[k+1] - xb)
+            y   = xs[k+1] - xb
+            xs[k] += K @ y
+            # xs[k] += dot(K, xs[k+1] - xb)
             ps[k] += dot(K, ps[k+1] - Pb).dot(K.T)
             Ks[k] = K
+
+            ll  += logpdf(x=y, cov=ps[k+1])
         
         if self.flag:
             warn('Errors in transition function during smoothing. Code '+str(self.flag))
 
-        return (xs, ps, Ks)
+        return (xs, ps, Ks, ll)
 
     def __repr__(self):
         return '\n'.join([
