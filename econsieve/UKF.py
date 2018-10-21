@@ -40,7 +40,6 @@ def cross_variance(Wc, x, z, sigmas_f, sigmas_h):
     for i in range(N):
         dx = sigmas_f[i] - x
         dz = sigmas_h[i] - z
-        # Pxz += self.Wc[i] * outer(dx, dz)
         Pxz += Wc[i] * outer(dx, dz)
     return Pxz
 
@@ -69,12 +68,17 @@ def update(z, R, P, x, Wc, Wm, sigmas_f, sigmas_h):
 
     y = z - zp   # residual
 
+    # print(S)
+    # print(np.linalg.cond(S))
+    # print(np.linalg.det(S))
+    # SI = np.linalg.pinv(S, rcond=1e-2)
     SI = np.linalg.pinv(S)
 
     K = dot(Pxz, SI)        # Kalman gain
 
     # update Gaussian state estimate (x, P)
-    x = x + dot(K, y)
+    x = x + K @ y
+    # print(x)
     P = P - dot(K, dot(S, K.T))
 
     return x, P, S, y
@@ -388,9 +392,9 @@ class UnscentedKalmanFilter(object):
         ll  = 0
         for i, z in enumerate(zs):
             self.predict()
-            self.x, self.P, S, y  = update(z, self.R, self.P, self.x, self.Wc, self.Wm, self.sigmas_f, self.sigmas_h)
-            means[i, :] = self.x
-            covariances[i, :, :] = self.P
+            self.x, self.P, S, y    = update(z, self.R, self.P, self.x, self.Wc, self.Wm, self.sigmas_f, self.sigmas_h)
+            means[i, :]             = self.x
+            covariances[i, :, :]    = self.P
             ll  += logpdf(x=y, cov=S)
 
         if self.flag:
