@@ -43,8 +43,8 @@ def cross_variance(Wc, x, z, sigmas_f, sigmas_h):
         Pxz += Wc[i] * outer(dx, dz)
     return Pxz
 
-@njit(cache=True)
-def update(z, R, P, x, Wc, Wm, sigmas_f, sigmas_h):
+# @njit(cache=True)
+def update(z, P, x, Wc, Wm, sigmas_f, sigmas_h):
     """
     Update the UKF with the given measurements. On return,
     x and P contain the new mean and covariance of the filter.
@@ -61,25 +61,21 @@ def update(z, R, P, x, Wc, Wm, sigmas_f, sigmas_h):
     """
 
     # mean and covariance of prediction passed through unscented transform
-    zp, S = UT(sigmas_h, Wm, Wc, R)
+    zp, S = UT(sigmas_h, Wm, Wc)
 
     # compute cross variance of the state and the measurements
     Pxz = cross_variance(Wc, x, zp, sigmas_f, sigmas_h)
+    # Pxz     = Pxz[-5:]
 
     y = z - zp   # residual
 
-    # print(S)
-    # print(np.linalg.cond(S))
-    # print(np.linalg.det(S))
-    # SI = np.linalg.pinv(S, rcond=1e-2)
     SI = np.linalg.pinv(S)
 
-    K = dot(Pxz, SI)        # Kalman gain
+    K   = Pxz @ SI      # Kalman gain
 
     # update Gaussian state estimate (x, P)
-    x = x + K @ y
-    # print(x)
-    P = P - dot(K, dot(S, K.T))
+    x += K @ y
+    P -= K @ S @ K.T
 
     return x, P, S, y
 
@@ -240,10 +236,11 @@ class UnscentedKalmanFilter(object):
 
         """
 
+        # self.x = empty(dim_x - dim_z)
+        self.v = empty(dim_z)
         self.x = empty(dim_x)
         self.P = eye(dim_x)
         self.Q = eye(dim_x)
-        self.R = eye(dim_z)
         self._dim_x = dim_x
         self._dim_z = dim_z
         self.points_fn = points
@@ -326,16 +323,6 @@ class UnscentedKalmanFilter(object):
             list of measurements at each time step `self._dt` Missing
             measurements must be represented by 'None'.
 
-        Rs : None, np.array or list-like, default=None
-            optional list of values to use for the measurement error
-            covariance R.
-
-            If Rs is None then self.R is used for all epochs.
-
-            If it is a list of matrices or a 3D array where
-            len(Rs) == len(zs), then it is treated as a list of R values, one
-            per epoch. This allows you to have varying R per epoch.
-
         Returns
         -------
 
@@ -392,7 +379,7 @@ class UnscentedKalmanFilter(object):
         ll  = 0
         for i, z in enumerate(zs):
             self.predict()
-            self.x, self.P, S, y    = update(z, self.R, self.P, self.x, self.Wc, self.Wm, self.sigmas_f, self.sigmas_h)
+            self.x, self.P, S, y    = update(z, self.P, self.x, self.Wc, self.Wm, self.sigmas_f, self.sigmas_h)
             means[i, :]             = self.x
             covariances[i, :, :]    = self.P
             ll  += logpdf(x=y, cov=S)
@@ -402,28 +389,6 @@ class UnscentedKalmanFilter(object):
 
         return (means, covariances, ll)
 
-    def get_ll(self, zs, Xs, Ps):
-        """
-        returns likelihood based on results from smoother
-        """
-
-        ll  = 0
-        for z, x, P in zip(zs, Xs, Ps):
-            self.x  = x
-            self.P  = P
-            # self.compute_process_sigmas()
-            self.predict()
-            ## genauer zwischen z & x differenzieren
-            ## möglicherweise braucht es doch ein predict um ein self.x zu produzieren?
-            ## reihenfolge beachten. wenn z_t auf basis von z_t vorhergesagt wird ist komisch
-            zp, S   = UT(self.sigmas_h, self.Wm, self.Wc, self.R)
-            y       = z - zp   # residual
-            ll      += logpdf(x=y, cov=S)
-
-        if self.flag:
-            warn('Error in transition function during filtering. Code '+str(self.flag))
-
-        return ll
 
     def rts_smoother(self, Xs, Ps, Qs=None):
         """
@@ -456,16 +421,6 @@ class UnscentedKalmanFilter(object):
 
         K : numpy.ndarray
             smoother gain at each step
-
-        Examples
-        --------
-
-        .. code-block:: Python
-
-            zs = [t + random.randn()*4 for t in range (40)]
-
-            (mu, cov, _, _) = kalman.batch_filter(zs)
-            (x, P, K) = rts_smoother(mu, cov, fk.F, fk.Q)
         """
 
         if len(Xs) != len(Ps):
@@ -507,8 +462,7 @@ class UnscentedKalmanFilter(object):
             # update the smoothed estimates
             y   = xs[k+1] - xb
             xs[k] += K @ y
-            # xs[k] += dot(K, xs[k+1] - xb)
-            ps[k] += dot(K, ps[k+1] - Pb).dot(K.T)
+            ps[k] += K @ (ps[k+1] - Pb) @ K.T
             Ks[k] = K
 
             ll  += logpdf(x=y, cov=ps[k+1])
@@ -524,7 +478,6 @@ class UnscentedKalmanFilter(object):
             pretty_str('x', self.x),
             pretty_str('P', self.P),
             pretty_str('Q', self.Q),
-            pretty_str('R', self.R),
             pretty_str('sigmas_f', self.sigmas_f),
             pretty_str('h', self.sigmas_h),
             pretty_str('Wm', self.Wm),

@@ -74,6 +74,8 @@ def sigma_points(x, P, alpha, beta):
     P_ic    = np.abs(P) > 10e-5
     red     = np.sum(P_ic, axis=0) > 0
     # red     = np.ones_like(red)
+    red     = np.zeros_like(red)
+    red[-5:]   = 1
 
     sigma   = sigma[red][:,red]
     n       = np.sum(red)

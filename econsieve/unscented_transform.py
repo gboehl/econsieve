@@ -66,6 +66,8 @@ def unscented_transform(sigmas, Wm, Wc, noise_cov=0):
     # new covariance is the sum of the outer product of the residuals
     # times the weights
     y = sigmas - x.reshape(1,-1)
+    # for i in range(y.shape[0]):
+        # print(y[i])
     P = y.T*Wc @ y
 
     P += noise_cov
