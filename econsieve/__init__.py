@@ -20,6 +20,5 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 from .kalman_filter import *
-from .unscented_transform import unscented_transform
 from .sigma_points import *
 from .UKF import *
