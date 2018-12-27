@@ -34,7 +34,7 @@ class EnsembleKalmanFilter(object):
             self.X_bars          = np.empty_like(self.Xs)
             self.X_bar_priors    = np.empty_like(self.Xs)
 
-        self.ll  = 0
+        ll  = 0
 
         means           = np.empty((Z.shape[0], self._dim_x))
         covs            = np.empty((Z.shape[0], self._dim_x, self._dim_x))
@@ -79,12 +79,14 @@ class EnsembleKalmanFilter(object):
             z_mean  = np.mean(Y, axis=1)
             y   = z - z_mean
             S   = np.cov(Y) 
-            self.ll  += logpdf(x=y, cov=S)
+            ll  += logpdf(x=y, cov=S)
 
         if info:
             print('Filtering took ', time.time() - st, 'seconds.')
 
-        return means, covs
+        self.ll     = ll
+
+        return means, covs, ll
 
 
     def rts_smoother(self, means, covs):
