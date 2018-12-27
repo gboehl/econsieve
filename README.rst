@@ -1,4 +1,4 @@
-EconSieve - Kalman Filter and Unscented Kalman filter supposed to be working with DSGE models
+EconSieve - Kalman Filter, Unscented Kalman filter and Ensemble Filter supposed to be working with DSGE models
 ---------------------------------------------------------------------------------------------
 
 I literally stole most of the code from these two projects:
