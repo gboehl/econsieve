@@ -13,7 +13,8 @@ They deserve most of the merits. I just made everything look way more complicate
    * extracting functions from classes and compile them using the @njit flag (speedup)
    * major cleanup
 
+The EnKF & Smoother is build from scratch.
+
 Yet I have not updated the documentation or the licensing.
 
 There is also basic functionallity missing like f.i. a setup script.
-
