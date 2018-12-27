@@ -11,6 +11,7 @@ They deserve most of the merits. I just made everything look way more complicate
    * treating numerical errors in the UKF covariance matrix by looking for the nearest positive semi-definite matrix
    * eliminating identical sigma points (yields speedup assuming that evaluation of each point is costly)
    * extracting functions from classes and compile them using the @njit flag (speedup)
+   * major cleanup
 
 Yet I have not updated the documentation or the licensing.
 
