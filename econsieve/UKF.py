@@ -66,7 +66,7 @@ def update(z, P, x, Wc, Wm, sigmas_f, sigmas_h):
     x += K @ y
     P -= K @ S @ K.T
 
-    return x, P, S, y
+    return x, P
  
 @njit(cache=True)
 def unscented_transform(sigmas, Wm, Wc, noise_cov=0):
@@ -193,7 +193,7 @@ class UnscentedKalmanFilter(object):
 
         ## necessary to re-initialize?
         self.x = np.zeros(self._dim_x)
-        self.P = eye(self._dim_x)
+        # self.P = eye(self._dim_x)
 
         z_n = np.size(zs, 0)
 
@@ -227,7 +227,8 @@ class UnscentedKalmanFilter(object):
         if len(Xs) != len(Ps):
             raise ValueError('Xs and Ps must have the same length')
 
-        n, dim_x = Xs.shape
+        n, dim_x        = Xs.shape
+        self._dim_sig   = 0
 
         if Qs is None:
             Qs = [self.Q] * n
@@ -237,10 +238,15 @@ class UnscentedKalmanFilter(object):
 
         xs, ps = Xs.copy(), Ps.copy()
 
-        ll  = 0
         for k in reversed(range(n-1)):
             ## create sigma points from state estimate, pass through state func
-            sigmas, Wc, Wm  = self.points_fn.sigma_points(xs[k], ps[k])
+            # sigmas, Wc, Wm  = self.points_fn.sigma_points(xs[k], ps[k])
+            sigmas, dim_sig     = self.points_fn.sigma_points(xs[k], ps[k])
+
+            if dim_sig is not self._dim_sig:
+                Wc, Wm          = self.points_fn.compute_weights(dim_sig)
+                self._dim_sig   = dim_sig
+
             num_sigmas      = sigmas.shape[0]
             sigmas_f        = empty((num_sigmas, dim_x))
 
@@ -266,9 +272,7 @@ class UnscentedKalmanFilter(object):
             ps[k] += K @ (ps[k+1] - Pb) @ K.T
             Ks[k] = K
 
-            ll  += logpdf(x=y, cov=ps[k+1])
-        
         if self.flag:
             warn('Errors in transition function during smoothing. Code '+str(self.flag))
 
-        return (xs, ps, Ks, ll)
+        return (xs, ps, Ks)

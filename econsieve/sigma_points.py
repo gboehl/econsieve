@@ -43,7 +43,7 @@ def sigma_points(x, P, alpha, beta):
     ## jittified version of fast0 from grgrlib
     P_ic    = np.abs(P) > 10e-5
     red     = np.sum(P_ic, axis=0) > 0
-    # red     = np.ones_like(red)
+    red     = np.ones_like(red)
 
     P2      = P[red][:,red]
     n       = np.sum(red)
