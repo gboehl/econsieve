@@ -42,7 +42,7 @@ class EnsembleKalmanFilter(object):
         Y           = np.empty((self._dim_z, self.N))
         X_prior     = np.empty((self._dim_x, self.N))
 
-        mu  = ss.multivariate_normal(mean = np.zeros(self.R.shape[0]), cov = self.R)
+        mu  = ss.multivariate_normal(mean = np.zeros(self.R.shape[0]), cov = self.R, allow_singular=True)
         eps = ss.multivariate_normal(mean = np.zeros(self.Q.shape[0]), cov = self.Q, allow_singular=True)
 
         if info:
