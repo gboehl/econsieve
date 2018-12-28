@@ -31,21 +31,7 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spln
 from scipy.stats import norm, multivariate_normal
 
-
-
-# Older versions of scipy do not support the allow_singular keyword. I could
-# check the version number explicily, but perhaps this is clearer
-_support_singular = True
-try:
-    multivariate_normal.logpdf(1, 1, 1, allow_singular=True)
-except TypeError:
-    warnings.warn(
-        'You are using a version of SciPy that does not support the '\
-        'allow_singular parameter in scipy.stats.multivariate_normal.logpdf(). '\
-        'Future versions of FilterPy will require a version of SciPy that '\
-        'implements this keyword',
-        DeprecationWarning)
-    _support_singular = False
+from numba import njit
 
 
 def _validate_vector(u, dtype=None):
@@ -127,30 +113,39 @@ def likelihood(z, x, P, H, R):
     return np.exp(log_likelihood(z, x, P, H, R))
 
 
-def logpdf(x, mean=None, cov=1, allow_singular=True):
-    """
-    Computes the log of the probability density function of the normal
-    N(mean, cov) for the data x. The normal may be univariate or multivariate.
+_cond    = 1e6 * np.finfo('d').eps
 
-    Wrapper for older versions of scipy.multivariate_normal.logpdf which
-    don't support support the allow_singular keyword prior to verion 0.15.0.
+_LOG_2PI = np.log(2 * np.pi)
 
-    If it is not supported, and cov is singular or not PSD you may get
-    an exception.
+@njit(cache=True)
+def psd_func(M):
 
-    `x` and `mean` may be column vectors, row vectors, or lists.
-    """
+    # Compute the symmetric eigendecomposition.
+    # Note that eigh takes care of array conversion, chkfinite,
+    # and assertion that the matrix is square.
 
-    if mean is not None:
-        flat_mean = np.asarray(mean).flatten()
-    else:
-        flat_mean = None
+    s, u = np.linalg.eigh(M)
+    eps     = _cond * np.max(np.abs(s))
+    d       = s[s > eps]
 
-    flat_x = np.asarray(x).flatten()
+    s_pinv  = [0 if abs(x) <= eps else 1/x for x in s]
 
-    if _support_singular:
-        return multivariate_normal.logpdf(flat_x, flat_mean, cov, allow_singular)
-    return multivariate_normal.logpdf(flat_x, flat_mean, cov)
+    s_pinv_np   = np.array(s_pinv)
+
+    U       = np.multiply(u, np.sqrt(s_pinv_np))
+
+    return U, np.sum(np.log(d)), len(d)
+
+@njit(cache=True)
+def logpdf(x, mean, cov, allow_singular=True):
+
+    dim     = mean.shape[0]
+    prec_U, log_det_cov, rank   = psd_func(cov)
+    dev     = x - mean
+    maha    = np.sum(np.square(np.dot(dev, prec_U)), axis=-1)
+    out     = -0.5 * (rank * _LOG_2PI + log_det_cov + maha)
+
+    return out
 
 
 def gaussian(x, mean, var, normed=True):

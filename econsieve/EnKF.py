@@ -2,71 +2,82 @@
 
 import numpy as np
 import numpy.linalg as nl
-import scipy.stats as ss
 import time
+
+from pydsge.engine import boehlgorithm_pp
+from numba import njit
 
 from .stats import logpdf
 
 class EnsembleKalmanFilter(object):
 
-    def __init__(self, dim_x, dim_z, fx, hx, N):
+    def __init__(self, N, dim_x = None, dim_z = None, fx = None, hx = None, model_obj = None):
 
-        self._dim_x = dim_x
-        self._dim_z = dim_z
-        self.fx     = fx
-        self.hx     = hx
+        ## get stuff directly from the model class if it exists
+        if model_obj is not None:
+            self._dim_x = len(model_obj.vv)
+            self._dim_z = model_obj.ny
+            self.fx         = lambda x: model_obj.t_func(x, return_flag = False)
+            self.hx         = model_obj.o_func
+
+        else:
+            self._dim_x = dim_x
+            self._dim_z = dim_z
+            self.fx     = fx
+            self.hx     = hx
+
         self.N      = N
 
-        self.R      = np.eye(dim_z)
-        self.Q      = np.eye(dim_x)
-        self.P      = np.eye(dim_x)
+        self.R      = np.eye(self._dim_z)
+        self.Q      = np.eye(self._dim_x)
+        self.P      = np.eye(self._dim_x)
 
-        self.x      = np.zeros(dim_x)
+        self.x      = np.zeros(self._dim_x)
 
-    def batch_filter(self, Z, store=True, info=False):
+    def batch_filter(self, Z, store=False, calc_ll=False, info=False):
 
-        I1  = np.ones(self.N)
-        I2  = np.eye(self.N) - np.outer(I1, I1)/self.N
+        _dim_x, _dim_z, N, P, R, Q, x =     self._dim_x, self._dim_z, self.N, self.P, self.R, self.Q, self.x 
+
+        I1  = np.ones(N)
+        I2  = np.eye(N) - np.outer(I1, I1)/N
 
         if store:
-            self.Xs              = np.empty((Z.shape[0], self._dim_x, self.N))
+            self.Xs              = np.empty((Z.shape[0], _dim_x, N))
             self.X_priors        = np.empty_like(self.Xs)
             self.X_bars          = np.empty_like(self.Xs)
             self.X_bar_priors    = np.empty_like(self.Xs)
 
         ll  = 0
 
-        means           = np.empty((Z.shape[0], self._dim_x))
-        covs            = np.empty((Z.shape[0], self._dim_x, self._dim_x))
+        means           = np.empty((Z.shape[0], _dim_x))
+        covs            = np.empty((Z.shape[0], _dim_x, _dim_x))
 
-        Y           = np.empty((self._dim_z, self.N))
-        X_prior     = np.empty((self._dim_x, self.N))
+        Y           = np.empty((_dim_z, N))
+        X_prior     = np.empty((_dim_x, N))
 
-        mu  = ss.multivariate_normal(mean = np.zeros(self.R.shape[0]), cov = self.R, allow_singular=True)
-        eps = ss.multivariate_normal(mean = np.zeros(self.Q.shape[0]), cov = self.Q, allow_singular=True)
-
-        if info:
-            st  = time.time()
-
-        X   = ss.multivariate_normal.rvs(mean = self.x, cov = self.P, size=self.N).T
+        mus     = np.random.multivariate_normal(mean = np.zeros(self._dim_z), cov = self.R, size=(len(Z),self.N))
+        epss    = np.random.multivariate_normal(mean = np.zeros(self._dim_x), cov = self.Q, size=(len(Z),self.N))
+        X       = np.random.multivariate_normal(mean = x, cov = P, size=N).T
 
         for nz, z in enumerate(Z):
 
-            ## predict
+            # predict
             for i in range(X.shape[1]):
-                X_prior[:,i]    = self.fx(X[:,i]) + eps.rvs()
+                eps             = epss[nz,i]
+                X_prior[:,i]    = self.fx(X[:,i]) + eps
 
             for i in range(X_prior.shape[1]):
-                Y[:,i]    = self.hx(X_prior[:,i]) + mu.rvs()
+                mu          = mus[nz,i]
+                Y[:,i]      = self.hx(X_prior[:,i]) + mu
 
-            ## update
+            # update
             X_bar   = X_prior @ I2
             Y_bar   = Y @ I2
-            Z       = np.outer(z, I1) 
+            ZZ      = np.outer(z, I1) 
             C_yy    = Y_bar @ Y_bar.T
-            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (self.N-1)*self.R) @ ( Z - Y )
+            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (N-1)*R) @ ( ZZ - Y )
 
-            ## storage
+            # storage
             means[nz,:]   = np.mean(X, axis=1)
             covs[nz,:,:]  = np.cov(X)
 
@@ -76,18 +87,15 @@ class EnsembleKalmanFilter(object):
                 self.X_priors[nz,:,:]        = X_prior
                 self.Xs[nz,:,:]              = X
 
-            z_mean  = np.mean(Y, axis=1)
-            y   = z - z_mean
-            S   = np.cov(Y) 
-            ll  += logpdf(x=y, cov=S)
-
-        if info:
-            print('Filtering took ', time.time() - st, 'seconds.')
+            if calc_ll:
+                z_mean  = np.mean(Y, axis=1)
+                y   = z - z_mean
+                S   = C_yy / (N-1)
+                ll  += logpdf(x=y, mean=np.zeros(_dim_z), cov=S)
 
         self.ll     = ll
 
         return means, covs, ll
-
 
     def rts_smoother(self, means, covs):
 
