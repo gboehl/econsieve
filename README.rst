@@ -1,4 +1,4 @@
-EconSieve - Kalman Filter, Unscented Kalman filter and Ensemble Filter supposed to be working with DSGE models
+EconSieve - Kalman Filter, Unscented Kalman filter, Ensemble Filter and TVF Smoother supposed to be working with DSGE models
 ---------------------------------------------------------------------------------------------
 
 I literally stole most of the code from these two projects:
@@ -13,7 +13,7 @@ They deserve most of the merits. I just made everything look way more complicate
    * extracting functions from classes and compile them using the @njit flag (speedup)
    * major cleanup
 
-The EnKF & Smoother is build from scratch.
+The TVF Smoother is build from scratch.
 
 Yet I have not updated the documentation or the licensing.
 

@@ -9,7 +9,7 @@ from numba import njit
 
 from .stats import logpdf
 
-class EnsembleKalmanFilter(object):
+class TVF(object):
 
     def __init__(self, N, dim_x = None, dim_z = None, fx = None, hx = None, model_obj = None):
 
