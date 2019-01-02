@@ -64,7 +64,8 @@ class TVF(object):
             # predict
             for i in range(X.shape[1]):
                 eps             = epss[nz,i]
-                X_prior[:,i]    = self.fx(X[:,i]) + eps
+                # X_prior[:,i]    = self.fx(X[:,i]) + eps
+                X_prior[:,i]    = self.fx(X[:,i]+eps)
 
             for i in range(X_prior.shape[1]):
                 mu          = mus[nz,i]
