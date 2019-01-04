@@ -104,7 +104,8 @@ class TVF(object):
 
         for i in reversed(range(means.shape[0] - 1)):
 
-            J   = self.X_bars[i] @ nl.pinv(self.X_bar_priors[i+1])
+            # J   = self.X_bars[i] @ nl.pinv(self.X_bar_priors[i+1])
+            J   = self.X_bars[i] @ self.X_bar_priors[i+1].T @ nl.pinv( self.X_bar_priors[i+1] @ self.X_bar_priors[i+1].T )
             SE  = self.Xs[i] + J @ (SE - self.X_priors[i+1])
 
             means[i]    = np.mean(SE, axis=1)
