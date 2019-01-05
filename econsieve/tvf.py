@@ -64,7 +64,6 @@ class TVF(object):
             # predict
             for i in range(X.shape[1]):
                 eps             = epss[nz,i]
-                # X_prior[:,i]    = self.fx(X[:,i]) + eps
                 X_prior[:,i]    = self.fx(X[:,i]+eps)
 
             for i in range(X_prior.shape[1]):
@@ -77,6 +76,7 @@ class TVF(object):
             ZZ      = np.outer(z, I1) 
             C_yy    = Y_bar @ Y_bar.T
             X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (N-1)*R) @ ( ZZ - Y )
+            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy) @ ( ZZ - Y )
 
             # storage
             means[nz,:]   = np.mean(X, axis=1)
