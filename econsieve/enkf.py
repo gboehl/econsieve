@@ -9,7 +9,7 @@ from numba import njit
 
 from .stats import logpdf
 
-class TVF(object):
+class EnKF(object):
 
     def __init__(self, N, dim_x = None, dim_z = None, fx = None, hx = None, model_obj = None):
 
