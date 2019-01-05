@@ -61,7 +61,7 @@ class TVF(object):
 
         for nz, z in enumerate(Z):
 
-            # predict
+            ## predict
             for i in range(X.shape[1]):
                 eps             = epss[nz,i]
                 X_prior[:,i]    = self.fx(X[:,i]+eps)
@@ -70,15 +70,15 @@ class TVF(object):
                 mu          = mus[nz,i]
                 Y[:,i]      = self.hx(X_prior[:,i]) + mu
 
-            # update
+            ## update
             X_bar   = X_prior @ I2
             Y_bar   = Y @ I2
             ZZ      = np.outer(z, I1) 
-            C_yy    = Y_bar @ Y_bar.T
-            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (N-1)*R) @ ( ZZ - Y )
-            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy) @ ( ZZ - Y )
+            C_yy    = np.cov(Y_bar)
+            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv((N-1)*(C_yy +R)) @ ( ZZ - Y )
+            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy*(N-1)) @ ( ZZ - Y )
 
-            # storage
+            ## storage
             means[nz,:]   = np.mean(X, axis=1)
             covs[nz,:,:]  = np.cov(X)
 
@@ -90,9 +90,7 @@ class TVF(object):
 
             if calc_ll:
                 z_mean  = np.mean(Y, axis=1)
-                y   = z - z_mean
-                S   = C_yy / (N-1)
-                ll  += logpdf(x=y, mean=np.zeros(_dim_z), cov=S)
+                ll      += logpdf(x = z, mean = z_mean, cov = C_yy)
 
         self.ll     = ll
 
