@@ -117,7 +117,7 @@ class EnKF(object):
 
         return means, covs
 
-    def adjuster(self, means = None, covs = None, mtd = None, info = False):
+    def ipa(self, means = None, covs = None, mtd = None, info = False):
 
         from scipy.optimize import minimize as so_minimize
 
