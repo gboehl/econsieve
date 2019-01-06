@@ -74,9 +74,11 @@ class EnKF(object):
             X_bar   = X_prior @ I2
             Y_bar   = Y @ I2
             ZZ      = np.outer(z, I1) 
-            C_yy    = np.cov(Y_bar)
+            # C_yy    = np.cov(Y_bar)
+            C_yy    = Y_bar @ Y_bar.T
             # X       = X_prior + X_bar @ Y_bar.T @ nl.inv((N-1)*(C_yy +R)) @ ( ZZ - Y )
-            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy*(N-1)) @ ( ZZ - Y )
+            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy*(N-1)) @ ( ZZ - Y )
+            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (N-1)*R) @ ( ZZ - Y )
 
             ## storage
             means[nz,:]   = np.mean(X, axis=1)
@@ -90,7 +92,10 @@ class EnKF(object):
 
             if calc_ll:
                 z_mean  = np.mean(Y, axis=1)
-                ll      += logpdf(x = z, mean = z_mean, cov = C_yy)
+                y   = z - z_mean
+                S   = C_yy/(N-1)
+                ll      += logpdf(x = y, mean = np.zeros(_dim_z), cov = S)
+                # ll      += logpdf(x = z, mean = z_mean, cov = C_yy)
 
         self.ll     = ll
 
