@@ -77,8 +77,9 @@ class EnKF(object):
             # C_yy    = np.cov(Y_bar)
             C_yy    = Y_bar @ Y_bar.T
             # X       = X_prior + X_bar @ Y_bar.T @ nl.inv((N-1)*(C_yy +R)) @ ( ZZ - Y )
+            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy) @ ( ZZ - Y )
             # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy*(N-1)) @ ( ZZ - Y )
-            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (N-1)*R) @ ( ZZ - Y )
+            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (N-1)*R) @ ( ZZ - Y )
 
             ## storage
             means[nz,:]   = np.mean(X, axis=1)
