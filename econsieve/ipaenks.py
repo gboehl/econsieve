@@ -74,11 +74,8 @@ class EnKF(object):
             X_bar   = X_prior @ I2
             Y_bar   = Y @ I2
             ZZ      = np.outer(z, I1) 
-            # C_yy    = np.cov(Y_bar)
             C_yy    = Y_bar @ Y_bar.T
-            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv((N-1)*(C_yy +R)) @ ( ZZ - Y )
             X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy) @ ( ZZ - Y )
-            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy*(N-1)) @ ( ZZ - Y )
             # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (N-1)*R) @ ( ZZ - Y )
 
             ## storage
@@ -96,11 +93,11 @@ class EnKF(object):
                 y   = z - z_mean
                 S   = C_yy/(N-1)
                 ll      += logpdf(x = y, mean = np.zeros(_dim_z), cov = S)
-                # ll      += logpdf(x = z, mean = z_mean, cov = C_yy)
 
         self.ll     = ll
 
         return means, covs, ll
+
 
     def rts_smoother(self, means = None, covs = None):
 
@@ -108,7 +105,6 @@ class EnKF(object):
 
         for i in reversed(range(means.shape[0] - 1)):
 
-            # J   = self.X_bars[i] @ nl.pinv(self.X_bar_priors[i+1])
             J   = self.X_bars[i] @ self.X_bar_priors[i+1].T @ nl.pinv( self.X_bar_priors[i+1] @ self.X_bar_priors[i+1].T )
             SE  = self.Xs[i] + J @ (SE - self.X_priors[i+1])
 
@@ -117,12 +113,30 @@ class EnKF(object):
 
         return means, covs
 
-    def ipa(self, means = None, covs = None, mtd = None, info = False):
+
+    def ipa(self, means = None, covs = None, method = None, info = False):
 
         from scipy.optimize import minimize as so_minimize
 
-        if mtd is None:
-            mtd     = 'L-BFGS-B' 
+        if method is None:
+            method     = 'L-BFGS-B' 
+        elif isinstance(method, int):
+            if method  == 0:
+                method  = "L-BFGS-B"
+            elif method  == 1:
+                method  = "Nelder-Mead"
+            elif method  == 2:
+                method  = "Powell"
+            elif method  == 3:
+                method  = "CG"
+            elif method  == 4:
+                method  = "BFGS"
+            elif method  == 5:
+                method  = "TNC"
+            elif method  == 6:
+                method  = "COBYLA"
+            if info:
+                print('Using %s for optimization in IPA.')
 
         x       = means[0]
 
@@ -148,10 +162,10 @@ class EnKF(object):
 
             eps0    = np.zeros(self._dim_z)
 
-            res     = so_minimize(target, eps0, method = mtd, args = (x, means[t+1], covs[t+1]))
+            res     = so_minimize(target, eps0, method = method, args = (x, means[t+1], covs[t+1]))
 
             ## backup option
-            if not res['success'] and mtd is not 'Powell':
+            if not res['success'] and method is not 'Powell':
                 res     = so_minimize(target, eps0, method = 'Powell', args = (x, means[t+1], covs[t+1]))
 
                 if not res['success']:
