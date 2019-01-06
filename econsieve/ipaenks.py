@@ -17,7 +17,7 @@ class EnKF(object):
         if model_obj is not None:
             self._dim_x = len(model_obj.vv)
             self._dim_z = model_obj.ny
-            self.fx         = lambda x: model_obj.t_func(x, return_flag = False)
+            self.fx         = model_obj.t_func
             self.hx         = model_obj.o_func
 
         else:
@@ -64,7 +64,7 @@ class EnKF(object):
             ## predict
             for i in range(X.shape[1]):
                 eps             = epss[nz,i]
-                X_prior[:,i]    = self.fx(X[:,i]+eps)
+                X_prior[:,i]    = self.fx(X[:,i]+eps)[0]
 
             for i in range(X_prior.shape[1]):
                 mu          = mus[nz,i]
@@ -102,7 +102,7 @@ class EnKF(object):
 
         return means, covs, ll
 
-    def rts_smoother(self, means, covs):
+    def rts_smoother(self, means = None, covs = None):
 
         SE      = self.Xs[-1]
 
@@ -116,3 +116,64 @@ class EnKF(object):
             covs[i]     = np.cov(SE)
 
         return means, covs
+
+    def adjuster(self, means = None, covs = None, mtd = None, info = False):
+
+        from scipy.optimize import minimize as so_minimize
+
+        if mtd is None:
+            mtd     = 'L-BFGS-B' 
+
+        x       = means[0]
+
+        EPS     = []
+
+        flag    = False
+        flags   = False
+
+        if info:
+            st  = time.time()
+
+        def target(eps, x, mean, cov):
+
+            state, flag     = self.fx(x, eps)
+
+            if flag:
+                return np.inf
+            else:
+                return -logpdf(state, mean = mean, cov = cov)
+
+
+        for t in range(means[:-1].shape[0]):
+
+            eps0    = np.zeros(self._dim_z)
+
+            res     = so_minimize(target, eps0, method = mtd, args = (x, means[t+1], covs[t+1]))
+
+            ## backup option
+            if not res['success'] and mtd is not 'Powell':
+                res     = so_minimize(target, eps0, method = 'Powell', args = (x, means[t+1], covs[t+1]))
+
+                if not res['success']:
+                    if flag:
+                        flags   = True
+                    flag    = True
+
+            eps     = res['x']
+
+            x, flag     = self.fx(x, noise=eps)
+
+            EPS.append(eps)
+
+            means[t+1]  = x
+
+        if info:
+            print('Extraction took ', time.time() - st, 'seconds.')
+        if flags:
+            warnings.warn('Issues(!) with convergence.')
+        elif flag:
+            warnings.warn('Issue with convergence')
+
+        res     = np.array(EPS)
+
+        return means, covs, res
