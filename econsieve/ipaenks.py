@@ -4,7 +4,6 @@ import numpy as np
 import numpy.linalg as nl
 import time
 
-from pydsge.engine import boehlgorithm_pp
 from numba import njit
 
 from .stats import logpdf
@@ -119,7 +118,7 @@ class EnKF(object):
         return means, covs
 
 
-    def ipa(self, means = None, covs = None, method = None, info = False):
+    def ipa(self, means = None, covs = None, method = None, converged_only = False, info = False):
 
         from scipy.optimize import minimize as so_minimize
 
@@ -157,7 +156,7 @@ class EnKF(object):
 
             state, flag     = self.fx(x, eps)
 
-            if flag:
+            if flag and converged_only:
                 return np.inf
             else:
                 return -logpdf(state, mean = mean, cov = cov)
