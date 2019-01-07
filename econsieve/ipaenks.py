@@ -66,20 +66,15 @@ class EnKF(object):
                 X_prior[:,i]    = self.fx(X[:,i]+eps)[0]
 
             for i in range(X_prior.shape[1]):
-                # mu          = mus[nz,i]
-                # Y[:,i]      = self.hx(X_prior[:,i]) + mu
-                Y[:,i]      = self.hx(X_prior[:,i]) 
+                mu          = mus[nz,i]
+                Y[:,i]      = self.hx(X_prior[:,i]) + mu
 
             ## update
             X_bar   = X_prior @ I2
             Y_bar   = Y @ I2
             ZZ      = np.outer(z, I1) 
-            # C_yy    = Y_bar @ Y_bar.T
-            C_yy    = np.cov(Y) + R
-            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy) @ ( ZZ - Y )
-            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (N-1)*R) @ ( ZZ - Y )
-            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy + (N-1)*R) @ ( ZZ - Y - mus[nz].T)
-            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy*(N-1)) @ ( ZZ - Y - mus[nz].T)
+            C_yy    = Y_bar @ Y_bar.T
+            X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy) @ ( ZZ - Y )
 
             ## storage
             means[nz,:]   = np.mean(X, axis=1)
@@ -94,8 +89,7 @@ class EnKF(object):
             if calc_ll:
                 z_mean  = np.mean(Y, axis=1)
                 y   = z - z_mean
-                # S   = C_yy/(N-1) + R
-                S   = C_yy
+                S   = C_yy/(N-1)
                 ll      += logpdf(x = y, mean = np.zeros(_dim_z), cov = S)
 
         self.ll     = ll
