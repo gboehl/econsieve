@@ -2,7 +2,7 @@
 
 import numpy as np
 import numpy.linalg as nl
-import time
+import time, warnings
 
 from numba import njit
 
@@ -120,7 +120,7 @@ class EnKF(object):
             methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
             method  = methodl[method]
             if info:
-                print('Using %s for optimization in IPA. Available methods are:', methodl)
+                print('Using %s for optimization in IPA. Available methods are %s' %(method, methodl))
 
         x       = means[0]
 
