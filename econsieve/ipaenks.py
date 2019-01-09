@@ -66,18 +66,14 @@ class EnKF(object):
                 X_prior[:,i]    = self.fx(X[:,i]+eps)[0]
 
             for i in range(X_prior.shape[1]):
-                # mu          = mus[nz,i]
-                # Y[:,i]      = self.hx(X_prior[:,i]) + mu
                 Y[:,i]      = self.hx(X_prior[:,i]) 
 
             ## update
             X_bar   = X_prior @ I2
             Y_bar   = Y @ I2
             ZZ      = np.outer(z, I1) 
-            # C_yy    = Y_bar @ Y_bar.T
-            C_yy    = np.cov(Y) + R
-            # X       = X_prior + X_bar @ Y_bar.T @ nl.inv(C_yy) @ ( ZZ - Y )
-            X       = X_prior + X_bar @ Y_bar.T @ nl.inv((N-1)*C_yy) @ ( ZZ - Y - mus[nz].T)
+            S       = np.cov(Y) + R
+            X       = X_prior + X_bar @ Y_bar.T @ nl.inv((N-1)*S) @ ( ZZ - Y - mus[nz].T)
 
             ## storage
             means[nz,:]   = np.mean(X, axis=1)
@@ -92,8 +88,6 @@ class EnKF(object):
             if calc_ll:
                 z_mean  = np.mean(Y, axis=1)
                 y   = z - z_mean
-                # S   = C_yy/(N-1)
-                S   = C_yy
                 ll      += logpdf(x = y, mean = np.zeros(_dim_z), cov = S)
 
         self.ll     = ll
@@ -123,22 +117,10 @@ class EnKF(object):
         if method is None:
             method     = 'L-BFGS-B' 
         elif isinstance(method, int):
-            if method  == 0:
-                method  = "L-BFGS-B"
-            elif method  == 1:
-                method  = "Nelder-Mead"
-            elif method  == 2:
-                method  = "Powell"
-            elif method  == 3:
-                method  = "CG"
-            elif method  == 4:
-                method  = "BFGS"
-            elif method  == 5:
-                method  = "TNC"
-            elif method  == 6:
-                method  = "COBYLA"
+            methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
+            method  = methodl[method]
             if info:
-                print('Using %s for optimization in IPA.')
+                print('Using %s for optimization in IPA. Available methods are:', methodl)
 
         x       = means[0]
 
