@@ -141,6 +141,7 @@ class EnKF(object):
             else:
                 return -logpdf(state, mean = mean, cov = cov)
 
+        superfflag  = False
 
         for t in range(means[:-1].shape[0]):
 
@@ -159,18 +160,27 @@ class EnKF(object):
 
             eps     = res['x']
 
-            x, flag     = self.fx(x, noise=eps)
+            x, fflag    = self.fx(x, noise=eps)
+            if fflag:
+                superfflag  = True
 
             EPS.append(eps)
 
             means[t+1]  = x
 
+        warn0 = warn1 = ''
+        if superfflag:
+            warn0   = 'Non-convergence in boehlgorithm.'
+        if flags:
+            warn1 = 'Issues(!) with convergence.'
+        elif flag:
+            warn1 = 'Issue with convergence'
+
+        if flag or superfflag:
+            warnings.warn(warn0+' '+warn1)
+
         if info:
             print('Extraction took ', time.time() - st, 'seconds.')
-        if flags:
-            warnings.warn('Issues(!) with convergence.')
-        elif flag:
-            warnings.warn('Issue with convergence')
 
         res     = np.array(EPS)
 
