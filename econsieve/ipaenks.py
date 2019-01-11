@@ -110,7 +110,7 @@ class EnKF(object):
         return means, covs
 
 
-    def ipa(self, means = None, covs = None, method = None, converged_only = False, info = False):
+    def ipa(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, return_flag = False, info = False):
 
         from scipy.optimize import minimize as so_minimize
 
@@ -120,7 +120,7 @@ class EnKF(object):
             methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
             method  = methodl[method]
             if info:
-                print('Using %s for optimization in IPA. Available methods are %s' %(method, methodl))
+                print('ipa: Using %s for optimization. Available methods are %s' %(method, *methodl))
 
         x       = means[0]
 
@@ -170,18 +170,24 @@ class EnKF(object):
 
         warn0 = warn1 = ''
         if superfflag:
-            warn0   = 'Non-convergence in boehlgorithm.'
+            warn0   = 'Transitionfunction returned error.'
         if flags:
             warn1 = 'Issues(!) with convergence.'
         elif flag:
             warn1 = 'Issue with convergence'
 
         if flag or superfflag:
-            warnings.warn(warn0+' '+warn1)
+            finflag     = bool(flag) + bool(flags) + 4*bool(superfflag)
+            if show_warnings:
+                warnings.warn('ipa: '+warn0+' '+warn1)
 
         if info:
-            print('Extraction took ', time.time() - st, 'seconds.')
+            print('ipa: Extraction took ', time.time() - st, 'seconds.')
 
         res     = np.array(EPS)
+
+        if return_flag:
+
+            return means, covs, res, finflag
 
         return means, covs, res
