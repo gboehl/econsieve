@@ -176,6 +176,7 @@ class EnKF(object):
         elif flag:
             warn1 = 'Issue with convergence'
 
+        finflag     = False
         if flag or superfflag:
             finflag     = bool(flag) + bool(flags) + 4*bool(superfflag)
             if show_warnings:
