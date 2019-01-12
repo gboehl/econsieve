@@ -33,7 +33,7 @@ class EnKF(object):
 
         self.x      = np.zeros(self._dim_x)
 
-    def batch_filter(self, Z, store=False, calc_ll=False, info=False):
+    def batch_filter(self, Z, store = False, calc_ll = False, verbose = False):
 
         _dim_x, _dim_z, N, P, R, Q, x =     self._dim_x, self._dim_z, self.N, self.P, self.R, self.Q, self.x 
 
@@ -110,7 +110,7 @@ class EnKF(object):
         return means, covs
 
 
-    def ipa(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, return_flag = False, info = False):
+    def ipa(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, return_flag = False, verbose = False):
 
         from scipy.optimize import minimize as so_minimize
 
@@ -119,7 +119,7 @@ class EnKF(object):
         elif isinstance(method, int):
             methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
             method  = methodl[method]
-            if info:
+            if verbose:
                 print('ipa: Using %s for optimization. Available methods are %s' %(method, *methodl))
 
         x       = means[0]
@@ -129,7 +129,7 @@ class EnKF(object):
         flag    = False
         flags   = False
 
-        if info:
+        if verbose:
             st  = time.time()
 
         def target(eps, x, mean, cov):
@@ -182,7 +182,7 @@ class EnKF(object):
             if show_warnings:
                 warnings.warn('ipa: '+warn0+' '+warn1)
 
-        if info:
+        if verbose:
             print('ipa: Extraction took ', time.time() - st, 'seconds.')
 
         res     = np.array(EPS)
