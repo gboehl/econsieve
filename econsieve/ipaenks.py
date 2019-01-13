@@ -110,7 +110,7 @@ class EnKF(object):
         return means, covs
 
 
-    def ipa(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, return_flag = False, verbose = False):
+    def ipas(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, return_flag = False, verbose = False):
 
         from scipy.optimize import minimize as so_minimize
 
@@ -120,7 +120,7 @@ class EnKF(object):
             methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
             method  = methodl[method]
             if verbose:
-                print('ipa: Using %s for optimization. Available methods are %s' %(method, *methodl))
+                print('[ipas:] Using %s for optimization. Available methods are %s' %(method, *methodl))
 
         x       = means[0]
 
@@ -180,10 +180,10 @@ class EnKF(object):
         if flag or superfflag:
             finflag     = bool(flag) + bool(flags) + 4*bool(superfflag)
             if show_warnings:
-                warnings.warn('ipa: '+warn0+' '+warn1)
+                warnings.warn('ipas: '+warn0+' '+warn1)
 
         if verbose:
-            print('ipa: Extraction took ', time.time() - st, 'seconds.')
+            print('[ipas:] Extraction took ', time.time() - st, 'seconds.')
 
         res     = np.array(EPS)
 
