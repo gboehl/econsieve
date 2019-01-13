@@ -115,12 +115,12 @@ class EnKF(object):
         from scipy.optimize import minimize as so_minimize
 
         if method is None:
-            method     = 'L-BFGS-B' 
+            method     = 'Nelder-Mead'
         elif isinstance(method, int):
             methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
             method  = methodl[method]
             if verbose:
-                print('[ipas:] Using %s for optimization. Available methods are %s' %(method, *methodl))
+                print('[ipas:] Using %s for optimization. Available methods are %s.' %(method, ', '.join(methodl)))
 
         x       = means[0]
 
