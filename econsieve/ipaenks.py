@@ -120,7 +120,7 @@ class EnKF(object):
             methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
             method  = methodl[method]
             if verbose:
-                print('[ipas:] Using %s for optimization. Available methods are %s.' %(method, ', '.join(methodl)))
+                print('[ipas:]'.ljust(15, ' ')+'Using %s for optimization. Available methods are %s.' %(method, ', '.join(methodl)))
 
         x       = means[0]
 
@@ -180,10 +180,10 @@ class EnKF(object):
         if flag or superfflag:
             finflag     = bool(flag) + bool(flags) + 4*bool(superfflag)
             if show_warnings:
-                warnings.warn('ipas: '+warn0+' '+warn1)
+                warnings.warn('[ipas:]'.ljust(15, ' ')+warn0+' '+warn1)
 
         if verbose:
-            print('[ipas:] Extraction took ', time.time() - st, 'seconds.')
+            print('[ipas:]'.ljust(15, ' ')+'Extraction took ', time.time() - st, 'seconds.')
 
         res     = np.array(EPS)
 
