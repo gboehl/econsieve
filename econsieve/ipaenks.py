@@ -35,6 +35,9 @@ class EnKF(object):
 
     def batch_filter(self, Z, store = False, calc_ll = False, verbose = False):
 
+        ## store time series for later
+        self.Z  = Z
+
         _dim_x, _dim_z, N, P, R, Q, x =     self._dim_x, self._dim_z, self.N, self.P, self.R, self.Q, self.x 
 
         I1  = np.ones(N)
@@ -110,12 +113,12 @@ class EnKF(object):
         return means, covs
 
 
-    def ipas(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, return_flag = False, verbose = False):
+    def ipas(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, itype = (0,1), addcovs = None, return_flag = False, verbose = False):
 
         from scipy.optimize import minimize as so_minimize
 
         if method is None:
-            method     = 'Nelder-Mead'
+            method     = 'Powell'
         elif isinstance(method, int):
             methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
             method  = methodl[method]
@@ -123,6 +126,8 @@ class EnKF(object):
                 print('[ipas:]'.ljust(15, ' ')+'Using %s for optimization. Available methods are %s.' %(method, ', '.join(methodl)))
 
         x       = means[0]
+        
+        itype   = np.array(itype)
 
         EPS     = []
 
@@ -132,33 +137,57 @@ class EnKF(object):
         if verbose:
             st  = time.time()
 
-        def target(eps, x, mean, cov):
+        if 0 in itype:
+            def maintarget(eps, x, mean, cov):
 
-            state, flag     = self.fx(x, eps)
+                state, flag     = self.fx(x, eps)
 
-            if flag and converged_only:
-                return np.inf
-            else:
+                if flag and converged_only:
+                    return np.inf
+
                 return -logpdf(state, mean = mean, cov = cov)
+
+        if 1 in itype:
+            if addcovs is None:
+
+                if not hasattr(self, 'eps_cov'):
+                    raise TypeError("Pre-smoothing requires to provide measurement and transition noise covariances ('addcovs' argument).")
+            else:
+                self.R          = addcovs[0]
+                self.eps_cov    = addcovs[1]
+
+            def pretarget(eps, x, obs):
+
+                state, flag     = self.fx(x, eps)
+
+                if flag:
+                    return np.inf
+
+                simobs  = self.hx(state)
+
+                llobs   = -logpdf(simobs, mean = obs, cov = self.R)
+                lleps   = -logpdf(eps, mean = np.zeros_like(obs), cov = self.eps_cov)
+
+                return llobs + lleps
 
         superfflag  = False
 
         for t in range(means[:-1].shape[0]):
 
-            eps0    = np.zeros(self._dim_z)
+            eps     = np.zeros(self._dim_z)
 
-            res     = so_minimize(target, eps0, method = method, args = (x, means[t+1], covs[t+1]))
+            if 1 in itype:
+                res     = so_minimize(pretarget, eps, method = method, args = (x, self.Z[t+1]))
+                eps     = res['x']
 
-            ## backup option
-            if not res['success'] and method is not 'Powell':
-                res     = so_minimize(target, eps0, method = 'Powell', args = (x, means[t+1], covs[t+1]))
+            if 0 in itype:
+                res     = so_minimize(maintarget, eps, method = method, args = (x, means[t+1], covs[t+1]))
+                eps     = res['x']
 
-                if not res['success']:
-                    if flag:
-                        flags   = True
-                    flag    = True
-
-            eps     = res['x']
+            if not res['success']:
+                if flag:
+                    flags   = True
+                flag    = True
 
             x, fflag    = self.fx(x, noise=eps)
             if fflag:
