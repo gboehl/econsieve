@@ -149,9 +149,9 @@ class EnKF(object):
 
         if 1 in itype:
             if addcovs is None:
-
                 if not hasattr(self, 'eps_cov'):
                     raise TypeError("Pre-smoothing requires to provide measurement and transition noise covariances ('addcovs' argument).")
+
             else:
                 self.R          = addcovs[0]
                 self.eps_cov    = addcovs[1]
