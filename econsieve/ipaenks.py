@@ -113,15 +113,23 @@ class EnKF(object):
         return means, covs
 
 
-    def ipas(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, itype = (0,1), addcovs = None, return_flag = False, verbose = False):
+    def ipas(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, itype = (0,1), gain = None, presmoothing = None, addcovs = None, return_flag = False, verbose = False):
+
+        ## itype legend:
+            ## 0: linear pre-smoothing
+            ## 1: log-ll (pre-)smoothing
+            ## 2: IPA-smoothing
 
         from scipy.optimize import minimize as so_minimize
 
         if method is None:
             method     = 'Powell'
         elif isinstance(method, int):
+
             methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
+
             method  = methodl[method]
+
             if verbose:
                 print('[ipas:]'.ljust(15, ' ')+'Using %s for optimization. Available methods are %s.' %(method, ', '.join(methodl)))
 
@@ -138,16 +146,6 @@ class EnKF(object):
             st  = time.time()
 
         if 0 in itype:
-            def maintarget(eps, x, mean, cov):
-
-                state, flag     = self.fx(x, eps)
-
-                if flag and converged_only:
-                    return np.inf
-
-                return -logpdf(state, mean = mean, cov = cov)
-
-        if 1 in itype:
             if addcovs is None:
                 if not hasattr(self, 'eps_cov'):
                     raise TypeError("Pre-smoothing requires to provide measurement and transition noise covariances ('addcovs' argument).")
@@ -170,18 +168,54 @@ class EnKF(object):
 
                 return llobs + lleps
 
+        if 1 in itype:
+            def maintarget(eps, x, mean, cov):
+
+                state, flag     = self.fx(x, eps)
+
+                if flag and converged_only:
+                    return np.inf
+
+                return -logpdf(state, mean = mean, cov = cov)
+
+        if gain is not None:
+            def hybrtarget(eps, x, mean, cov, obs):
+
+                state, flag     = self.fx(x, eps)
+
+                if flag and converged_only:
+                    return np.inf
+
+                simobs  = self.hx(state)
+
+                llobs   = -logpdf(simobs, mean = obs, cov = self.R)
+                lleps   = -logpdf(eps, mean = np.zeros_like(obs), cov = self.eps_cov)
+                llmean  = -logpdf(state, mean = mean, cov = cov)
+
+                return (1-gain)*(llobs + lleps)/len(obs) + gain*llmean/len(mean)
+
         superfflag  = False
 
         for t in range(means[:-1].shape[0]):
 
             eps     = np.zeros(self._dim_z)
 
-            if 1 in itype:
+            if presmoothing is not None:
+                T1, T2  = presmoothing
+                P_inv   = nl.pinv(covs[t+1]) 
+                eps     = nl.inv(T2.T @ P_inv @ T2) @ T2.T @ P_inv @ ( means[t+1] - T1 @ x )
+                print(eps)
+
+            if 0 in itype:
                 res     = so_minimize(pretarget, eps, method = method, args = (x, self.Z[t+1]))
                 eps     = res['x']
 
-            if 0 in itype:
+            if 1 in itype:
                 res     = so_minimize(maintarget, eps, method = method, args = (x, means[t+1], covs[t+1]))
+                eps     = res['x']
+
+            if gain is not None:
+                res     = so_minimize(hybrtarget, eps, method = method, args = (x, means[t+1], covs[t+1], self.Z[t+1]))
                 eps     = res['x']
 
             if not res['success']:
