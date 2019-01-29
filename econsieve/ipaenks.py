@@ -116,9 +116,11 @@ class EnKF(object):
     def ipas(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, itype = (0,1), gain = None, presmoothing = None, addcovs = None, return_flag = False, verbose = False):
 
         ## itype legend:
-            ## 0: linear pre-smoothing
-            ## 1: log-ll (pre-)smoothing
-            ## 2: IPA-smoothing
+            ## 0: log-ll (pre-)smoothing
+            ## 1: IPA-smoothing
+        ## presmooter:
+            ## if not None (=disabled) must contain a touple of the two objects T1 & T2 s.t.
+            ## x_t  = T1 @ x_{t-1} + T2 @ eps
 
         from scipy.optimize import minimize as so_minimize
 
@@ -204,7 +206,6 @@ class EnKF(object):
                 T1, T2  = presmoothing
                 P_inv   = nl.pinv(covs[t+1]) 
                 eps     = nl.inv(T2.T @ P_inv @ T2) @ T2.T @ P_inv @ ( means[t+1] - T1 @ x )
-                print(eps)
 
             if 0 in itype:
                 res     = so_minimize(pretarget, eps, method = method, args = (x, self.Z[t+1]))
