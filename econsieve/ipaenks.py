@@ -125,7 +125,7 @@ class EnKF(object):
         from scipy.optimize import minimize as so_minimize
 
         if method is None:
-            method     = 'Powell'
+            method     = 'Nelder-Mead'
         elif isinstance(method, int):
 
             methodl     = ["L-BFGS-B", "Nelder-Mead", "Powell", "CG", "BFGS", "TNC", "COBYLA"]
@@ -160,7 +160,7 @@ class EnKF(object):
 
                 state, flag     = self.fx(x, eps)
 
-                if flag:
+                if flag and converged_only:
                     return np.inf
 
                 simobs  = self.hx(state)
@@ -208,11 +208,11 @@ class EnKF(object):
                 eps     = nl.inv(T2.T @ P_inv @ T2) @ T2.T @ P_inv @ ( means[t+1] - T1 @ x )
 
             if 0 in itype:
-                res     = so_minimize(pretarget, eps, method = method, args = (x, self.Z[t+1]))
+                res     = so_minimize(pretarget, eps, method = method, args = (x, self.Z[t+1]), options={'maxfev': 4000})
                 eps     = res['x']
 
             if 1 in itype:
-                res     = so_minimize(maintarget, eps, method = method, args = (x, means[t+1], covs[t+1]))
+                res     = so_minimize(maintarget, eps, method = method, args = (x, means[t+1], covs[t+1]), options={'maxfev': 4000})
                 eps     = res['x']
 
             if gain is not None:
