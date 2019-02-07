@@ -113,7 +113,7 @@ class EnKF(object):
         return means, covs
 
 
-    def ipas(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, itype = (0,1), gain = None, presmoothing = None, addcovs = None, return_flag = False, verbose = False):
+    def ipas(self, means = None, covs = None, method = None, converged_only = False, show_warnings = True, itype = (0,1), gain = None, presmoothing = None, preextract = None, addcovs = None, min_options = None, return_flag = False, verbose = False):
 
         ## itype legend:
             ## 0: log-ll (pre-)smoothing
@@ -146,6 +146,11 @@ class EnKF(object):
 
         if verbose:
             st  = time.time()
+
+        if presmoothing is not None:
+            T1, T2, T3  = presmoothing
+            Ce  = nl.inv(self.eps_cov)
+            Cz  = nl.inv(self.R)
 
         if 0 in itype:
             if addcovs is None:
@@ -198,31 +203,35 @@ class EnKF(object):
 
         superfflag  = False
 
+
         for t in range(means[:-1].shape[0]):
 
             eps     = np.zeros(self._dim_z)
 
+            ## contains many options that are most likely not necessary
             if presmoothing is not None:
-                T1, T2  = presmoothing
-                P_inv   = nl.pinv(covs[t+1]) 
-                eps     = nl.inv(T2.T @ P_inv @ T2) @ T2.T @ P_inv @ ( means[t+1] - T1 @ x )
+                eps     = nl.pinv(Ce + T2.T @ Cz @ T2) @ T2.T @ Cz @ ( self.Z[t+1] - T1 @ x - T3 )
+
+            if preextract is not None:
+                x2eps   = preextract
+                eps     = (means[t+1] - self.fx(means[t], np.zeros_like(eps))[0]) @ x2eps
 
             if 0 in itype:
-                res     = so_minimize(pretarget, eps, method = method, args = (x, self.Z[t+1]), options={'maxfev': 4000})
+                res     = so_minimize(pretarget, eps, method = method, args = (x, self.Z[t+1]), options=min_options)
                 eps     = res['x']
 
             if 1 in itype:
-                res     = so_minimize(maintarget, eps, method = method, args = (x, means[t+1], covs[t+1]), options={'maxfev': 4000})
+                res     = so_minimize(maintarget, eps, method = method, args = (x, means[t+1], covs[t+1]), options=min_options)
                 eps     = res['x']
 
             if gain is not None:
                 res     = so_minimize(hybrtarget, eps, method = method, args = (x, means[t+1], covs[t+1], self.Z[t+1]))
                 eps     = res['x']
 
-            if not res['success']:
-                if flag:
-                    flags   = True
-                flag    = True
+            # if not res['success']:
+                # if flag:
+                    # flags   = True
+                # flag    = True
 
             x, fflag    = self.fx(x, noise=eps)
             if fflag:
