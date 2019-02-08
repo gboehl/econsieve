@@ -534,14 +534,14 @@ class KalmanFilter(object):
 
         # y = z - Hx
         # error (residual) between measurement and prediction
-        self.y = z - dot(H, self.x)
+        self.y = z - dot(H[0], self.x) - H[1].reshape(-1,1)
 
         # common subexpression for speed
-        PHT = dot(self.P, H.T)
+        PHT = dot(self.P, H[0].T)
 
         # S = HPH' + R
         # project system uncertainty into measurement space
-        self.S = dot(H, PHT) + R
+        self.S = dot(H[0], PHT) + R
         self.SI = self.inv(self.S)
         # K = PH'inv(S)
         # map system uncertainty into kalman gain
@@ -556,7 +556,7 @@ class KalmanFilter(object):
         # and works for non-optimal K vs the equation
         # P = (I-KH)P usually seen in the literature.
 
-        I_KH = self._I - dot(self.K, H)
+        I_KH = self._I - dot(self.K, H[0])
         self.P = dot(dot(I_KH, self.P), I_KH.T) + dot(dot(self.K, R), self.K.T)
 
         # save measurement and posterior state
@@ -888,6 +888,9 @@ class KalmanFilter(object):
         covariances = zeros((n, self.dim_x, self.dim_x))
         covariances_p = zeros((n, self.dim_x, self.dim_x))
 
+        self.x = zeros((self.dim_x, 1)) 
+        ll  = 0
+
         if update_first:
             for i, (z, F, Q, H, R, B, u) in enumerate(zip(zs, Fs, Qs, Hs, Rs, Bs, us)):
 
@@ -898,6 +901,8 @@ class KalmanFilter(object):
                 self.predict(u=u, B=B, F=F, Q=Q)
                 means_p[i, :] = self.x
                 covariances_p[i, :, :] = self.P
+
+                ll += self.log_likelihood
 
                 if saver is not None:
                     saver.save()
@@ -912,10 +917,12 @@ class KalmanFilter(object):
                 means[i, :] = self.x
                 covariances[i, :, :] = self.P
 
+                ll += self.log_likelihood
+
                 if saver is not None:
                     saver.save()
 
-        return (means, covariances, means_p, covariances_p)
+        return (means.squeeze(), covariances.squeeze(), ll, means_p.squeeze(), covariances_p.squeeze())
 
     def rts_smoother(self, Xs, Ps, Fs=None, Qs=None, inv=np.linalg.inv):
         """
@@ -1102,7 +1109,7 @@ class KalmanFilter(object):
         log-likelihood of the last measurement.
         """
         if self._log_likelihood is None:
-            self._log_likelihood = logpdf(x=self.y, cov=self.S)
+            self._log_likelihood = logpdf(x=self.y.flatten(), mean=np.zeros(self.dim_z), cov=self.S)
         return self._log_likelihood
 
     @property
