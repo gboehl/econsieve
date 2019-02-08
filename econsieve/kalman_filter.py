@@ -922,7 +922,7 @@ class KalmanFilter(object):
                 if saver is not None:
                     saver.save()
 
-        return (means.squeeze(), covariances.squeeze(), ll, means_p.squeeze(), covariances_p.squeeze())
+        return (means.squeeze(), covariances, ll, means_p.squeeze(), covariances_p)
 
     def rts_smoother(self, Xs, Ps, Fs=None, Qs=None, inv=np.linalg.inv):
         """
