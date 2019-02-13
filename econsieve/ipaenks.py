@@ -262,7 +262,7 @@ class EnKF(object):
 
         if verbose:
             print('[ipas:]'.ljust(15, ' ')+'Extraction took ',
-                  time.time() - st, 'seconds.')
+                  np.round(time.time() - st,5), 'seconds.')
 
         res = np.array(EPS)
 
