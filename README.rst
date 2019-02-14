@@ -1,4 +1,4 @@
-EconSieve - Kalman Filter, Unscented Kalman filter, Ensemble Filter and Iterative Path-Adjusting Smoother IPAS 
+EconSieve - Kalman Filter, Unscented Kalman filter, Ensemble Filter and Iterative Path-Adjusting Smoother (IPAS) 
 ---------------------------------------------------------------------------------------------
 
 Apart from the smoother, I literally stole most of the code from these two projects:
