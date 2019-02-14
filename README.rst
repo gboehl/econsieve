@@ -1,7 +1,7 @@
-EconSieve - Kalman Filter, Unscented Kalman filter, Ensemble Filter and TVF Smoother supposed to be working with DSGE models
+EconSieve - Kalman Filter, Unscented Kalman filter, Ensemble Filter and Iterative Path-Adjusting Smoother IPAS 
 ---------------------------------------------------------------------------------------------
 
-I literally stole most of the code from these two projects:
+Apart from the smoother, I literally stole most of the code from these two projects:
 
     * https://github.com/rlabbe/filterpy
     * https://github.com/pykalman/pykalman
@@ -13,8 +13,8 @@ They deserve most of the merits. I just made everything look way more complicate
    * extracting functions from classes and compile them using the @njit flag (speedup)
    * major cleanup
 
-The TVF Smoother is build from scratch.
+IPAS is build from scratch. I barely did any testing as a standalone filter but always used it in combination with the 'pydsge' API, where it works very well.
 
 Yet I have not updated the documentation or the licensing.
 
-There is also basic functionallity missing like f.i. a setup script.
+Also, basic functionallity is missing like f.i. a setup script.
