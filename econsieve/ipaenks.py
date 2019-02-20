@@ -178,7 +178,7 @@ class EnKF(object):
             else:
                 (T1, T2, T3), self.eps_cov, x2eps = objects
 
-        if presmoothing is 'linear':
+        if presmoothing == 'linear':
             Ce = nl.inv(self.eps_cov)
             Cz = nl.inv(self.R)
 
@@ -211,14 +211,16 @@ class EnKF(object):
 
         for t in range(means[:-1].shape[0]):
 
-            if presmoothing is 'off':
+            if presmoothing == 'off':
                 eps = np.zeros(self._dim_z)
-            elif presmoothing is 'residuals':
+            elif presmoothing == 'residuals':
                 eps = (means[t+1] - self.fx(means[t],
                                             np.zeros(self._dim_z))[0]) @ x2eps
-            elif presmoothing is 'linear':
+            elif presmoothing == 'linear':
                 eps = nl.pinv(Ce + T2.T @ Cz @
                               T2) @ T2.T @ Cz @ (self.Z[t+1] - T1 @ x - T3)
+            else:
+                raise Exception('[ipas:]'.ljust(15, ' ')+" 'Presmoothing' must be either 'off', residuals' or 'linear'.")
 
             if 0 in itype:
                 res = so_minimize(pretarget, eps, method=method, args=(
