@@ -16,21 +16,10 @@ class EnKF(object):
 
     def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, model_obj=None):
 
-        self.mod = model_obj
-
-        # get stuff directly from the model class if it exists
-        if model_obj is not None:
-            self.mod = model_obj
-            self._dim_x = len(model_obj.vv)
-            self._dim_z = model_obj.ny
-            self.fx = model_obj.t_func
-            self.hx = model_obj.o_func
-
-        else:
-            self._dim_x = dim_x
-            self._dim_z = dim_z
-            self.fx = fx
-            self.hx = hx
+        self._dim_x = dim_x
+        self._dim_z = dim_z
+        self.fx = fx
+        self.hx = hx
 
         self.N = N
 
@@ -136,8 +125,16 @@ class EnKF(object):
         """
 
         if method is None:
+
             # yields most roboust results
             method = 'Nelder-Mead'
+
+            if min_options is None:
+               min_options = {'maxfev': 30000}
+
+            if presmoothing is None and objects is not None:
+               presmoothing='linear'
+
         elif isinstance(method, int):
 
             methodl = ["Nelder-Mead", "BFGS", "Powell",
@@ -166,17 +163,11 @@ class EnKF(object):
             presmoothing = 'off'
 
         if presmoothing is not 'off' or 0 in itype:
-            if self.mod is not None:
-                T1 = self.mod.linear_representation()
-                T1, T2 = self.mod.hx[0] @ T1, self.mod.hx[0] @ T1 @ self.mod.SIG
-                T3 = self.mod.hx[1]
-                eps_cov = self.eps_cov
-                x2eps = self.mod.SIG
-            elif objects is None:
+            if objects is None:
                 raise TypeError(
                     "(MLE-)Presmoothing requires to provide additional objects ('objects' argument). Form: (T1, T2, T3), eps_cov, x2eps")
             else:
-                (T1, T2, T3), self.eps_cov, x2eps = objects
+                (T1, T2, T3), x2eps = objects
 
         if presmoothing == 'linear':
             Ce = nl.inv(self.eps_cov)
