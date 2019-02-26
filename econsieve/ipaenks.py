@@ -3,8 +3,6 @@
 import numpy as np
 import numpy.linalg as nl
 import time
-# warnings module is annoying, need to fix
-# import time, warnings
 from scipy.optimize import minimize as so_minimize
 
 from numba import njit
@@ -96,14 +94,14 @@ class EnKF(object):
 
         return means, covs, ll
 
-    def rts_smoother(self, means=None, covs=None):
+    def rts_smoother(self, means=None, covs=None, rcond=1e-14):
 
         SE = self.Xs[-1]
 
         for i in reversed(range(means.shape[0] - 1)):
 
             J = self.X_bars[i] @ self.X_bar_priors[i+1].T @ nl.pinv(
-                self.X_bar_priors[i+1] @ self.X_bar_priors[i+1].T)
+                self.X_bar_priors[i+1] @ self.X_bar_priors[i+1].T, rcond=rcond)
             SE = self.Xs[i] + J @ (SE - self.X_priors[i+1])
 
             means[i] = np.mean(SE, axis=1)
