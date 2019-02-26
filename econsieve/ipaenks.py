@@ -75,9 +75,6 @@ class EnKF(object):
             X = X_prior + \
                 X_bar @ Y_bar.T @ nl.inv((N-1)*S) @ (ZZ - Y - mus[nz].T)
 
-            # storage
-            means[nz, :] = np.mean(X, axis=1)
-            covs[nz, :, :] = np.cov(X)
 
             if store:
                 self.X_bar_priors[nz, :, :] = X_bar
@@ -86,13 +83,21 @@ class EnKF(object):
                 self.Xs[nz, :, :] = X
 
             if calc_ll:
+                # cummulate ll
                 z_mean = np.mean(Y, axis=1)
                 y = z - z_mean
                 ll += logpdf(x=y, mean=np.zeros(_dim_z), cov=S)
+            else:
+                # storage of means & cov
+                means[nz, :] = np.mean(X, axis=1)
+                covs[nz, :, :] = np.cov(X)
 
-        self.ll = ll
 
-        return means, covs, ll
+        if calc_ll:
+            self.ll = ll
+            return ll
+        else:
+            return means, covs
 
     def rts_smoother(self, means=None, covs=None, rcond=1e-14):
 
