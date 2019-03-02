@@ -181,13 +181,13 @@ class EnKF(object):
 
                 state, flag = self.fx(x, eps)
 
-                if flag and converged_only:
-                    return np.inf
-
                 simobs = self.hx(state)
 
                 llobs = -logpdf(simobs, mean=obs, cov=self.R)
                 lleps = -logpdf(eps, mean=np.zeros_like(obs), cov=self.eps_cov)
+
+                if flag and converged_only:
+                    return llobs + lleps + converged_only
 
                 return llobs + lleps
 
@@ -197,7 +197,7 @@ class EnKF(object):
                 state, flag = self.fx(x, eps)
 
                 if flag and converged_only:
-                    return np.inf
+                    return -logpdf(state, mean=mean, cov=cov) + converged_only
 
                 return -logpdf(state, mean=mean, cov=cov)
 
