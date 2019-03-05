@@ -114,7 +114,7 @@ class EnKF(object):
 
         return means, covs
 
-    def ipas(self, means=None, covs=None, method=None, converged_only=False, show_warnings=True, itype=None, presmoothing=None, objects=None, min_options=None, return_flag=False, verbose=False):
+    def ipas(self, means=None, covs=None, method=None, penalty=False, show_warnings=True, itype=None, presmoothing=None, objects=None, min_options=None, return_flag=False, verbose=False):
         """
         itype legend:
             0: MLE (pre-)smoothing
@@ -186,8 +186,8 @@ class EnKF(object):
                 llobs = -logpdf(simobs, mean=obs, cov=self.R)
                 lleps = -logpdf(eps, mean=np.zeros_like(obs), cov=self.eps_cov)
 
-                if flag and converged_only:
-                    return llobs + lleps + converged_only
+                if flag:
+                    return llobs + lleps + penalty
 
                 return llobs + lleps
 
@@ -196,8 +196,8 @@ class EnKF(object):
 
                 state, flag = self.fx(x, eps)
 
-                if flag and converged_only:
-                    return -logpdf(state, mean=mean, cov=cov) + converged_only
+                if flag:
+                    return -logpdf(state, mean=mean, cov=cov) + penalty
 
                 return -logpdf(state, mean=mean, cov=cov)
 
@@ -244,7 +244,7 @@ class EnKF(object):
 
         warn0 = warn1 = ''
         if superfflag:
-            warn0 = 'Transitionfunction returned error.'
+            warn0 = 'Transition function returned error.'
         if flags:
             warn1 = "Issues with convergence of 'minimize'."
         elif flag:
