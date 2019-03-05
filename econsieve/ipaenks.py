@@ -162,7 +162,7 @@ class EnKF(object):
         if verbose:
             st = time.time()
 
-        if presmoothing is None:
+        if not presmoothing or presmoothing is None:
             presmoothing = 'off'
 
         if presmoothing is not 'off' or 0 in itype:
