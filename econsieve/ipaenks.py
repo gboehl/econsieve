@@ -136,7 +136,7 @@ class EnKF(object):
                min_options = {'maxfev': 30000}
 
             if presmoothing is None and objects is not None:
-               presmoothing='linear'
+               presmoothing='residuals'
 
         elif isinstance(method, int):
 
@@ -152,6 +152,7 @@ class EnKF(object):
 
         if itype is None:
             itype = 1
+
         itype = np.array(itype)
 
         EPS = []
@@ -239,7 +240,6 @@ class EnKF(object):
                 superfflag = True
 
             EPS.append(eps)
-
             means[t+1] = x
 
         warn0 = warn1 = ''
