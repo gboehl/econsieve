@@ -24,6 +24,7 @@ class KalmanFilter(object):
         self.dim_z = dim_z
 
         self.x = zeros((dim_x, 1))        # state
+        self.init_P = eye(dim_x)          # initial uncertainty covariance
         self.P = eye(dim_x)               # uncertainty covariance
         self.Q = eye(dim_x)               # process uncertainty
         self.B = None                     # control transition matrix
@@ -300,6 +301,8 @@ class KalmanFilter(object):
             Bs = [self.B] * n
         if us is None:
             us = [0] * n
+
+        self.P  = self.init_P
 
         # mean estimates from Kalman Filter
         if self.x.ndim == 1:

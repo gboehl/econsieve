@@ -1,4 +1,5 @@
-EconSieve - Kalman Filter, Unscented Kalman filter, Ensemble Filter and Iterative Path-Adjusting Smoother (IPAS) 
+# EconSieve - Kalman Filter, Unscented Kalman filter, Ensemble Filter and Iterative Path-Adjusting Smoother (IPAS) 
+
 ---------------------------------------------------------------------------------------------
 
 Apart from the smoother, I literally stole most of the code from these two projects:
@@ -17,4 +18,17 @@ IPAS is build from scratch. I barely did any testing as a standalone filter but 
 
 Yet I have not updated the documentation or the licensing.
 
-Also, basic functionallity is missing like f.i. a setup script.
+## Installation with `pip` (simple)
+
+The simplest way is to clone the repository and then from within the cloned folder run (Windows user from the Anaconda Prompt):
+```
+pip3 install .
+```
+
+## Installation with `pip` (elegant via `git`)
+
+The handy way is to first install `git`. Linux users just use their respective repos. Windows users get it here: https://git-scm.com/download/win
+
+```
+pip3 install git+https://github.com/gboehl/econsieve
+```
