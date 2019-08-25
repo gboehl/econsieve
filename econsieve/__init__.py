@@ -22,4 +22,5 @@ from __future__ import (absolute_import, division, print_function,
 from .kalman_filter import *
 from .sigma_points import *
 from .ukf import *
-from .ipaenks import *
+from .ipas import ipas
+from .tenks import TEnKF
