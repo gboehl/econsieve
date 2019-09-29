@@ -22,4 +22,4 @@ from .kalman_filter import *
 from .sigma_points import *
 from .ukf import *
 from .ipas import ipas
-from .tenks import TEnKF
+from .tenkf import TEnKF
