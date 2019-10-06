@@ -16,10 +16,9 @@ This is licensed under an MIT license. See the readme.MD file
 for more information.
 """
 
-# from __future__ import (absolute_import, division, print_function, unicode_literals)
-
 from .kalman_filter import *
 from .sigma_points import *
 from .ukf import *
-from .ipas import ipas
 from .tenkf import TEnKF
+from .ipas import ipas
+TEnKF.ipas = ipas

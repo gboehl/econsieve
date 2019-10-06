@@ -3,7 +3,6 @@
 
 import numpy as np
 import numpy.linalg as nl
-import time
 from scipy.optimize import minimize as so_minimize
 from numba import njit
 from .stats import logpdf
@@ -11,7 +10,9 @@ from .stats import logpdf
 
 class TEnKF(object):
 
-    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, model_obj=None):
+    name = 'TEnKF'
+
+    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None):
 
         self._dim_x = dim_x
         self._dim_z = dim_z
@@ -56,6 +57,8 @@ class TEnKF(object):
             mean=np.zeros(self._dim_x), cov=self.Q, size=(len(Z), self.N))
         X = np.random.multivariate_normal(mean=x, cov=P, size=N).T
 
+        self.Xs = np.empty((Z.shape[0], _dim_x, N))
+
         for nz, z in enumerate(Z):
 
             # predict
@@ -87,28 +90,27 @@ class TEnKF(object):
                 y = z - z_mean
                 ll += logpdf(x=y, mean=np.zeros(_dim_z), cov=S)
             else:
-                # storage of means & cov
-                means[nz, :] = np.mean(X, axis=1)
-                covs[nz, :, :] = np.cov(X)
-
+                self.Xs[nz, :, :] = X
 
         if calc_ll:
             self.ll = ll
             return ll
         else:
-            return means, covs
+            return np.rollaxis(self.Xs, 2)
 
     def rts_smoother(self, means=None, covs=None, rcond=1e-14):
 
-        SE = self.Xs[-1]
+        S = self.Xs[-1]
+        Ss = self.Xs.copy()
 
-        for i in reversed(range(means.shape[0] - 1)):
+        for i in reversed(range(self.Xs.shape[0] - 1)):
 
             J = self.X_bars[i] @ self.X_bar_priors[i+1].T @ nl.pinv(
                 self.X_bar_priors[i+1] @ self.X_bar_priors[i+1].T, rcond=rcond)
-            SE = self.Xs[i] + J @ (SE - self.X_priors[i+1])
+            S = self.Xs[i] + J @ (S - self.X_priors[i+1])
 
-            means[i] = np.mean(SE, axis=1)
-            covs[i] = np.cov(SE)
+            Ss[i,:,:] = S
 
-        return means, covs
+        self.Ss = Ss
+
+        return np.rollaxis(Ss, 2)

@@ -14,6 +14,8 @@ from .common import pretty_str, reshape_z
 
 class KalmanFilter(object):
 
+    name = 'KalmanFilter'
+
     def __init__(self, dim_x, dim_z):
         if dim_x < 1:
             raise ValueError('dim_x must be 1 or greater')
