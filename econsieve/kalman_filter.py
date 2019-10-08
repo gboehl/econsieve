@@ -561,7 +561,6 @@ class KalmanFilter(object):
             pretty_str('M', self.M),
             pretty_str('B', self.B),
             pretty_str('z', self.z),
-            pretty_str('log-likelihood', self.log_likelihood),
             pretty_str('likelihood', self.likelihood),
             pretty_str('mahalanobis', self.mahalanobis),
             pretty_str('inv', self.inv)

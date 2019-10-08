@@ -4,10 +4,10 @@
 import time
 import numpy as np
 import pygmo as pg
-from grgrlib.stuff import GPP
+from grgrlib.stuff import GPP, timeprint
 from .stats import logpdf
 
-def ipas(self, X=None, means=None, covs=None, no_gen=100, maxeval=None, no_pop=10, method_loc=False, method_glob=None, bound_sigma=4, verbose=True):
+def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol=None, method_loc=None, method_glob=None, bound_sigma=4, verbose=True):
     """Iterative Path-Adjusing Smoother. Assumes that either, X (a time series of ensembles) is given (or can be taken from the `self` filter object), or the time series means and covs are give. From the filter object, also `eps_cov` (the diagonal matrix of the standard deviations of the shocks) and the transition function `fx(state, shock_innovations)` must be provided.
     """
 
@@ -47,28 +47,37 @@ def ipas(self, X=None, means=None, covs=None, no_gen=100, maxeval=None, no_pop=1
     x = means[0]
     flag = False
 
-    if method_glob:
-        algo_glob = pg.algorithm(method_glob(gen = no_gen))
+    if ngen:
+        algo_glob = pg.algorithm(method_glob(gen = ngen))
 
-    if method_loc:
+    if maxeval != 0:
         algo_loc = pg.algorithm(pg.nlopt(method_loc))
 
         if maxeval is not None:
             algo_loc.extract(pg.nlopt).maxeval = maxeval
+        if ftol is not None:
+            algo_loc.extract(pg.nlopt).ftol_rel = ftol
 
-    for t in range(means.shape[0] - 1):
+    if verbose:
+        from tqdm import tqdm
+        wrap = tqdm
+    else:
+        wrap = lambda x: x
+
+    for t in wrap(range(means.shape[0] - 1)):
 
         func = lambda eps: maintarget(eps, x, means[t+1], covs[t+1])
-
         prob = pg.problem(GPP(func=func, bounds=(-bound, bound)))
 
-        pop = pg.population(prob, no_pop)
-        if method_glob:
-            pop = algo_glob.evolve(pop)
-        if method_loc:
-            pop = algo_loc.evolve(pop)
-        eps = pop.champion_x
+        pop = pg.population(prob, npop-1)
+        pop.push_back(np.zeros(self._dim_z))
 
+        if ngen:
+            pop = algo_glob.evolve(pop)
+        if maxeval != 0:
+            pop = algo_loc.evolve(pop)
+
+        eps = pop.champion_x
         x, fflag = self.fx(x, noise=eps)
 
         if fflag:
@@ -82,7 +91,7 @@ def ipas(self, X=None, means=None, covs=None, no_gen=100, maxeval=None, no_pop=1
         print('[ipas:]'.ljust(15, ' ')+'Transition function returned error.')
 
     if verbose:
-        print('[ipas:]'.ljust(15, ' ')+'Extraction took ', np.round(time.time() - st,5), 'seconds.')
+        print('[ipas:]'.ljust(15, ' ')+'Extraction took ', timeprint(time.time(),3), 's.')
 
     res = np.array(EPS)
 
