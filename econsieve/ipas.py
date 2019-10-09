@@ -7,6 +7,7 @@ import pygmo as pg
 from grgrlib.stuff import GPP, timeprint
 from .stats import logpdf
 
+
 def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol=None, method_loc=None, method_glob=None, bound_sigma=4, verbose=True):
     """Iterative Path-Adjusing Smoother. Assumes that either, X (a time series of ensembles) is given (or can be taken from the `self` filter object), or the time series means and covs are give. From the filter object, also `eps_cov` (the diagonal matrix of the standard deviations of the shocks) and the transition function `fx(state, shock_innovations)` must be provided.
     """
@@ -20,7 +21,7 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
     if covs is None:
         covs = np.empty((X.shape[1], X.shape[2], X.shape[2]))
         for i in range(X.shape[1]):
-            covs[i,:,:] = np.cov(X[:,i,:].T)
+            covs[i, :, :] = np.cov(X[:, i, :].T)
 
     if method_loc is None:
         method_loc = 'cobyla'
@@ -48,7 +49,7 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
     flag = False
 
     if ngen:
-        algo_glob = pg.algorithm(method_glob(gen = ngen))
+        algo_glob = pg.algorithm(method_glob(gen=ngen))
 
     if maxeval != 0:
         algo_loc = pg.algorithm(pg.nlopt(method_loc))
@@ -62,11 +63,11 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
         from tqdm import tqdm
         wrap = tqdm
     else:
-        wrap = lambda x: x
+        def wrap(x): return x
 
     for t in wrap(range(means.shape[0] - 1)):
 
-        func = lambda eps: maintarget(eps, x, means[t+1], covs[t+1])
+        def func(eps): return maintarget(eps, x, means[t+1], covs[t+1])
         prob = pg.problem(GPP(func=func, bounds=(-bound, bound)))
 
         pop = pg.population(prob, npop-1)
@@ -81,7 +82,7 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
         x, fflag = self.fx(x, noise=eps)
 
         if fflag:
-            ## should never happen
+            # should never happen
             flag = True
 
         EPS.append(eps)
@@ -91,7 +92,8 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
         print('[ipas:]'.ljust(15, ' ')+'Transition function returned error.')
 
     if verbose:
-        print('[ipas:]'.ljust(15, ' ')+'Extraction took ', timeprint(time.time(),3), 's.')
+        print('[ipas:]'.ljust(15, ' ')+'Extraction took ',
+              timeprint(time.time() - st, 3))
 
     res = np.array(EPS)
 
