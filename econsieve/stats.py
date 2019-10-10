@@ -34,6 +34,8 @@ from scipy.stats import norm, multivariate_normal
 from numba import njit
 
 
+_cond    = 1e6 * np.finfo('d').eps
+
 def _validate_vector(u, dtype=None):
     # this is taken from scipy.spatial.distance. Internal function, so
     # redefining here.
@@ -116,7 +118,6 @@ def likelihood(z, x, P, H, R):
 @njit(cache=True)
 def psd_func(M):
 
-    _cond    = 1e6 * np.finfo('d').eps
 
     # Compute the symmetric eigendecomposition.
     # Note that eigh takes care of array conversion, chkfinite,
