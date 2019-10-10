@@ -34,7 +34,8 @@ from scipy.stats import norm, multivariate_normal
 from numba import njit
 
 
-_cond    = 1e6 * np.finfo('d').eps
+# _cond    = 1e6 * np.finfo('d').eps
+# _cond    = 1e-9
 
 def _validate_vector(u, dtype=None):
     # this is taken from scipy.spatial.distance. Internal function, so
