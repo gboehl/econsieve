@@ -8,13 +8,6 @@ Documentation
    :undoc-members:
    :show-inheritance:
 
-``econsieve.ipas``
-------------------
-.. automodule:: econsieve.ipas
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ``econsieve.ukf``
 ------------------
 .. automodule:: econsieve.ukf
