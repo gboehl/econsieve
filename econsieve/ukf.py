@@ -23,7 +23,6 @@ import sys
 import numpy as np
 from numpy import eye, zeros, dot, isscalar, outer, empty
 from .stats import logpdf
-from .common import pretty_str
 from warnings import warn
 from numba import njit
 
