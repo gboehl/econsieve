@@ -10,7 +10,6 @@ import numpy as np
 from numpy import dot, zeros, eye, isscalar, shape
 import numpy.linalg as linalg
 from .stats import logpdf
-from .common import pretty_str, reshape_z
 
 class KalmanFilter(object):
 
@@ -540,28 +539,4 @@ class KalmanFilter(object):
         return self._mahalanobis
 
     def __repr__(self):
-        return '\n'.join([
-            'KalmanFilter object',
-            pretty_str('dim_x', self.dim_x),
-            pretty_str('dim_z', self.dim_z),
-            pretty_str('x', self.x),
-            pretty_str('P', self.P),
-            pretty_str('x_prior', self.x_prior),
-            pretty_str('P_prior', self.P_prior),
-            pretty_str('x_post', self.x_post),
-            pretty_str('P_post', self.P_post),
-            pretty_str('F', self.F),
-            pretty_str('Q', self.Q),
-            pretty_str('R', self.R),
-            pretty_str('H', self.H),
-            pretty_str('K', self.K),
-            pretty_str('y', self.y),
-            pretty_str('S', self.S),
-            pretty_str('SI', self.SI),
-            pretty_str('M', self.M),
-            pretty_str('B', self.B),
-            pretty_str('z', self.z),
-            pretty_str('likelihood', self.likelihood),
-            pretty_str('mahalanobis', self.mahalanobis),
-            pretty_str('inv', self.inv)
-            ])
+        return 'KalmanFilter object'

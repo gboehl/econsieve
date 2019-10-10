@@ -113,12 +113,10 @@ def likelihood(z, x, P, H, R):
     return np.exp(log_likelihood(z, x, P, H, R))
 
 
-_cond    = 1e6 * np.finfo('d').eps
-
-_LOG_2PI = np.log(2 * np.pi)
-
 @njit(cache=True)
 def psd_func(M):
+
+    _cond    = 1e6 * np.finfo('d').eps
 
     # Compute the symmetric eigendecomposition.
     # Note that eigh takes care of array conversion, chkfinite,
@@ -138,6 +136,8 @@ def psd_func(M):
 
 @njit(cache=True)
 def logpdf(x, mean, cov, allow_singular=True):
+
+    _LOG_2PI = np.log(2 * np.pi)
 
     dim     = mean.shape[0]
     prec_U, log_det_cov, rank   = psd_func(cov)
