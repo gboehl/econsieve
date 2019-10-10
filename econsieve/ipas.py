@@ -8,7 +8,7 @@ from grgrlib.stuff import GPP, timeprint
 from .stats import logpdf
 
 
-def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol=None, method_loc=None, method_glob=None, bound_sigma=4, verbose=True):
+def ipas(self, X=None, get_eps=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol=None, method_loc=None, method_glob=None, bound_sigma=4, seed=0, verbose=True):
     """Iterative Path-Adjusing Smoother. Assumes that either, X (a time series of ensembles) is given (or can be taken from the `self` filter object), or the time series means and covs are give. From the filter object, also `eps_cov` (the diagonal matrix of the standard deviations of the shocks) and the transition function `fx(state, shock_innovations)` must be provided.
     """
 
@@ -17,6 +17,13 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
 
     if means is None:
         means = np.mean(X, axis=0)
+
+    res = np.empty((means.shape[0]-1,self._dim_z))
+
+    ## presmoothing
+    if get_eps is not None:
+        for i in range(res.shape[0]):
+            res[i,:] = get_eps(means[i], means[i+1])
 
     if covs is None:
         covs = np.empty((X.shape[1], X.shape[2], X.shape[2]))
@@ -31,7 +38,6 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
 
     bound = np.diag(self.eps_cov)*bound_sigma
 
-    EPS = []
 
     if verbose:
         st = time.time()
@@ -49,7 +55,7 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
     flag = False
 
     if ngen:
-        algo_glob = pg.algorithm(method_glob(gen=ngen))
+        algo_glob = pg.algorithm(method_glob(gen=ngen, seed=seed))
 
     if maxeval != 0:
         algo_loc = pg.algorithm(pg.nlopt(method_loc))
@@ -67,10 +73,17 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
 
     for t in wrap(range(means.shape[0] - 1)):
 
-        def func(eps): return maintarget(eps, x, means[t+1], covs[t+1])
+        def func(eps): 
+            return maintarget(eps, x, means[t+1], covs[t+1])
+
         prob = pg.problem(GPP(func=func, bounds=(-bound, bound)))
 
-        pop = pg.population(prob, npop-1)
+        pop = pg.population(prob, npop-1-(get_eps is not None), seed=seed)
+
+        if get_eps is not None:
+            pop.push_back(res[t])
+
+        pop.push_back(np.zeros(self._dim_z))
         pop.push_back(np.zeros(self._dim_z))
 
         if ngen:
@@ -85,7 +98,7 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
             # should never happen
             flag = True
 
-        EPS.append(eps)
+        res[t,:] = eps
         means[t+1] = x
 
     if flag and verbose:
@@ -94,7 +107,5 @@ def ipas(self, X=None, means=None, covs=None, ngen=100, npop=10, maxeval=0, ftol
     if verbose:
         print('[ipas:]'.ljust(15, ' ')+'Extraction took ',
               timeprint(time.time() - st, 3))
-
-    res = np.array(EPS)
 
     return means, covs, res, flag
