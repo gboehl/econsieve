@@ -17,7 +17,6 @@ for more information.
 
 from __future__ import division
 import numpy as np
-from .common import pretty_str
 from numba import njit
 from grgrlib import cholesky
 
