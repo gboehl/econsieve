@@ -12,6 +12,9 @@ def ipas(self, X=None, get_eps=None, means=None, covs=None, ngen=100, npop=10, m
     """Iterative Path-Adjusing Smoother. Assumes that either, X (a time series of ensembles) is given (or can be taken from the `self` filter object), or the time series means and covs are give. From the filter object, also `eps_cov` (the diagonal matrix of the standard deviations of the shocks) and the transition function `fx(state, shock_innovations)` must be provided.
     """
 
+    if verbose:
+        st = time.time()
+
     if X is None and hasattr(self, 'Ss'):
         X = np.rollaxis(self.Ss, 2)
 
@@ -38,16 +41,12 @@ def ipas(self, X=None, get_eps=None, means=None, covs=None, ngen=100, npop=10, m
 
     bound = np.diag(self.eps_cov)*bound_sigma
 
-
-    if verbose:
-        st = time.time()
-
     def maintarget(eps, x, mean, cov):
 
         state, flag = self.fx(x, eps)
 
         if flag:
-            return np.inf
+            return -np.inf
 
         return logpdf(state, mean=mean, cov=cov)
 
@@ -83,7 +82,6 @@ def ipas(self, X=None, get_eps=None, means=None, covs=None, ngen=100, npop=10, m
         if get_eps is not None:
             pop.push_back(res[t])
 
-        pop.push_back(np.zeros(self._dim_z))
         pop.push_back(np.zeros(self._dim_z))
 
         if ngen:
