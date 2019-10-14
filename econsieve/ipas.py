@@ -15,35 +15,17 @@ def ipas(self, X=None, get_eps=None, refilter=False, means=None, covs=None, ngen
     if verbose:
         st = time.time()
 
-    if refilter:
-        ## X must be an ensembles of x dimensions
-        if X is None:
-            X = self.Ss[0]
+    ## X must be time series of ensembles of x dimensions
+    if X is None and hasattr(self, 'Ss'):
+        X = np.rollaxis(self.Ss, 2)
 
-        means = np.empty((len(self.Z), X.shape[0]))
-        covs = np.empty((len(self.Z), X.shape[0], X.shape[0]))
-        Xs = np.empty((len(self.Z), X.shape[0], self.N))
+    if means is None:
+        means = np.mean(X, axis=0)
 
-        means[0] = np.mean(X, axis=1)
-        covs[0] = np.cov(X)
-        Xs[0] = X
-
-        I1 = np.ones(self.N)
-        I2 = np.eye(self.N) - np.outer(I1, I1)/self.N
-
-        Y = np.empty((self._dim_z, self.N))
-    else:
-        ## X must be time series of ensembles of x dimensions
-        if X is None and hasattr(self, 'Ss'):
-            X = np.rollaxis(self.Ss, 2)
-
-        if means is None:
-            means = np.mean(X, axis=0)
-
-        if covs is None:
-            covs = np.empty((X.shape[1], X.shape[2], X.shape[2]))
-            for i in range(X.shape[1]):
-                covs[i, :, :] = np.cov(X[:, i, :].T)
+    if covs is None:
+        covs = np.empty((X.shape[1], X.shape[2], X.shape[2]))
+        for i in range(X.shape[1]):
+            covs[i, :, :] = np.cov(X[:, i, :].T)
 
     x = means[0]
 
@@ -87,40 +69,12 @@ def ipas(self, X=None, get_eps=None, refilter=False, means=None, covs=None, ngen
 
     for t in wrap(range(means.shape[0] - 1)):
 
-        if refilter:
-            # predict
-            for i in range(X.shape[1]):
-                eps = np.random.multivariate_normal(mean=np.zeros(self._dim_z), cov=self.Q)
-                X[:, i] = self.t_func(X[:, i], eps)[0]
-
-            Y = self.o_func(X.T).T
-
-            mus = np.random.multivariate_normal(mean=np.zeros(self._dim_z), cov=self.R, size=self.N)
-
-            # # update
-            X_bar = X @ I2
-            Y_bar = Y @ I2
-            ZZ = np.outer(self.Z[t+1], I1)
-            S = np.cov(Y) + self.R
-            X += X_bar @ Y_bar.T @ np.linalg.inv((self.N-1)*S) @ (ZZ - Y - mus.T)
-
-            mean = np.mean(X, axis=1)
-            cov = np.cov(X)
-        else:
-            mean = means[t+1]
-            cov = covs[t+1]
-
-        if get_eps is not None:
-            guess = get_eps(x, mean)
-
-        def func(eps): 
-            return maintarget(eps, x, mean, cov)
-
+        func = lambda eps: maintarget(eps, x, means[t+1], covs[t+1])
         prob = pg.problem(GPP(func=func, bounds=(-bound, bound)))
         pop = pg.population(prob, npop-1-(get_eps is not None), seed=seed)
 
         if get_eps is not None:
-            pop.push_back(guess)
+            pop.push_back(get_eps(x, means[t+1]))
 
         pop.push_back(np.zeros(self._dim_z))
 
