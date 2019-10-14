@@ -4,6 +4,7 @@
 import time
 import numpy as np
 import pygmo as pg
+from tqdm import tqdm
 from grgrlib.stuff import GPP, timeprint
 from .stats import logpdf
 
@@ -16,7 +17,7 @@ def ipas(self, X=None, get_eps=None, refilter=False, means=None, covs=None, ngen
         st = time.time()
 
     ## X must be time series of ensembles of x dimensions
-    if X is None and hasattr(self, 'Ss'):
+    if X is None:
         X = np.rollaxis(self.Ss, 2)
 
     if means is None:
@@ -37,10 +38,9 @@ def ipas(self, X=None, get_eps=None, refilter=False, means=None, covs=None, ngen
 
     bound = np.diag(self.eps_cov)*bound_sigma
 
-    def maintarget(eps, x, mean, cov):
+    def target(eps, x, mean, cov):
 
         state, flag = self.t_func(x, eps)
-
         if flag:
             return -np.inf
 
@@ -57,11 +57,7 @@ def ipas(self, X=None, get_eps=None, refilter=False, means=None, covs=None, ngen
         if ftol is not None:
             algo_loc.extract(pg.nlopt).ftol_rel = ftol
 
-    if verbose:
-        from tqdm import tqdm
-        wrap = tqdm
-    else:
-        def wrap(x): return x
+    wrap = tqdm if verbose else lambda x: x
 
     ## preallocate
     res = np.empty((len(self.Z)-1,self._dim_z))
@@ -69,7 +65,7 @@ def ipas(self, X=None, get_eps=None, refilter=False, means=None, covs=None, ngen
 
     for t in wrap(range(means.shape[0] - 1)):
 
-        func = lambda eps: maintarget(eps, x, means[t+1], covs[t+1])
+        func = lambda eps: target(eps, x, means[t+1], covs[t+1])
         prob = pg.problem(GPP(func=func, bounds=(-bound, bound)))
         pop = pg.population(prob, npop-1-(get_eps is not None), seed=seed)
 
@@ -86,17 +82,10 @@ def ipas(self, X=None, get_eps=None, refilter=False, means=None, covs=None, ngen
         eps = pop.champion_x
         x, fflag = self.t_func(x, noise=eps)
 
-        if fflag:
-            # should never happen
-            flag = True
+        flag |= fflag
 
         res[t] = eps
         means[t+1] = x
-
-        if refilter:
-            X = (X.T + x - np.mean(X, axis=1)).T
-            Xs[t+1] = X
-            covs[t+1] = cov
 
     if flag and verbose:
         print('[ipas:]'.ljust(15, ' ')+'Transition function returned error.')
@@ -104,8 +93,5 @@ def ipas(self, X=None, get_eps=None, refilter=False, means=None, covs=None, ngen
     if verbose:
         print('[ipas:]'.ljust(15, ' ')+'Extraction took ',
               timeprint(time.time() - st, 3))
-
-    if refilter:
-        self.EXs = Xs
 
     return means, covs, res, flag
