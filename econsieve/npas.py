@@ -9,7 +9,7 @@ from grgrlib.stuff import GPP, timeprint
 from .stats import logpdf
 
 
-def npas(self, X=None, means=None, covs=None, get_eps=None, ngen=100, npop=10, bound_sig=4, maxeval=0, ftol=None, method_loc=None, method_glob=None, seed=0, verbose=True):
+def npas(self, X=None, means=None, covs=None, get_eps=None, ngen=100, npop=10, bound_sigma=4, maxeval=0, ftol=None, method_loc=None, method_glob=None, seed=0, verbose=True):
     """Nonlinear Path-Adjustment Smoother. 
     Assumes that either, X (a time series of ensembles) is given (or can be taken from the `self` filter object), or the time series means and covs are give. From the filter object, also `eps_cov` (the diagonal matrix of the standard deviations of the shocks) and the transition function `t_func(state, shock_innovations)` must be provided.
     ...
@@ -28,7 +28,7 @@ def npas(self, X=None, means=None, covs=None, get_eps=None, ngen=100, npop=10, b
         the number of generations for each population of particle swarms. Defaults to 100
     npop : int, optional
         the number of particle swarm populations. Defaults to 10
-    bound_sig : int, optional
+    bound_sigma : int, optional
         the number of standard deviations included in the box constraint of the global optimizer
     maxeval : int, optional
         maximum number of function evaluations of the local nonlinear optimizer. 0 disables local optimization (default)

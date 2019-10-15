@@ -20,5 +20,5 @@ from .kalman_filter import *
 from .sigma_points import *
 from .ukf import *
 from .tenkf import TEnKF
-from .ipas import ipas
-TEnKF.ipas = ipas
+from .npas import npas
+TEnKF.npas = npas
