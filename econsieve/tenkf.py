@@ -12,7 +12,7 @@ class TEnKF(object):
 
     name = 'TEnKF'
 
-    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, seed=None):
+    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, rule=None, seed=None):
 
         self._dim_x = dim_x
         self._dim_z = dim_z
@@ -21,6 +21,7 @@ class TEnKF(object):
 
         self.N = N
         self.seed = seed
+        self.rule = 'L' if rule is None else rule
 
         self.R = np.eye(self._dim_z)
         self.Q = np.eye(self._dim_x)
@@ -28,7 +29,11 @@ class TEnKF(object):
 
         self.x = np.zeros(self._dim_x)
 
-    def batch_filter(self, Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False):
+    def batch_filter(self, Z, init_states=None, seed=None, store=False, calc_ll=False, sobol=False, shuffle=True, verbose=False):
+        """Batch filter.
+
+        Runs the TEnKF on the complete dataset.
+        """
 
         # store time series for later
         self.Z = Z
@@ -57,14 +62,25 @@ class TEnKF(object):
 
         Y = np.empty((_dim_z, N))
 
-        mus = np.random.multivariate_normal(
-            mean=np.zeros(self._dim_z), cov=self.R, size=(len(Z), self.N))
-        epss = np.random.multivariate_normal(
-            mean=np.zeros(self._dim_z), cov=self.Q, size=(len(Z), self.N))
+        if sobol:
+            import chaospy as cp
 
-        if init_states is None:
-            X = np.random.multivariate_normal(mean=self.x, cov=P, size=N).T
+            epss = cp.MvNormal(np.zeros(self._dim_z), self.Q).sample(size=(len(Z),self.N), rule=self.rule)
+            mus = cp.MvNormal(np.zeros(self._dim_z), self.R).sample(size=(len(Z),self.N), rule=self.rule)
+            epss = np.moveaxis(epss,0,2)
+            mus = np.moveaxis(mus,0,2)
+            if shuffle:
+                np.random.shuffle(epss)
+                np.random.shuffle(mus)
+            X = cp.MvNormal(self.x, self.P).sample(size=self.N, rule=self.rule)
         else:
+            mus = np.random.multivariate_normal(
+                mean=np.zeros(self._dim_z), cov=self.R, size=(len(Z), self.N))
+            epss = np.random.multivariate_normal(
+                mean=np.zeros(self._dim_z), cov=self.Q, size=(len(Z), self.N))
+            X = np.random.multivariate_normal(mean=self.x, cov=P, size=N).T
+
+        if init_states is not None:
             X = init_states
 
         self.Xs = np.empty((Z.shape[0], _dim_x, N))
