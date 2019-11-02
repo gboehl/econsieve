@@ -4,6 +4,7 @@
 import numpy as np
 import numpy.linalg as nl
 from scipy.optimize import minimize as so_minimize
+from grgrlib.stuff import tinv
 from numba import njit
 from .stats import logpdf
 
@@ -130,8 +131,9 @@ class TEnKF(object):
 
         for i in reversed(range(self.Xs.shape[0] - 1)):
 
-            J = self.X_bars[i] @ self.X_bar_priors[i+1].T @ nl.pinv(
-                self.X_bar_priors[i+1] @ self.X_bar_priors[i+1].T, rcond=rcond)
+            # J = self.X_bars[i] @ self.X_bar_priors[i+1].T @ nl.pinv(
+                # self.X_bar_priors[i+1] @ self.X_bar_priors[i+1].T, rcond=rcond)
+            J = self.X_bars[i] @ tinv(self.X_bar_priors[i+1])
             S = self.Xs[i] + J @ (S - self.X_priors[i+1])
 
             Ss[i,:,:] = S
