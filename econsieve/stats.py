@@ -129,9 +129,7 @@ def psd_func(M):
     d       = s[s > eps]
 
     s_pinv  = [0 if abs(x) <= eps else 1/x for x in s]
-
     s_pinv_np   = np.array(s_pinv)
-
     U       = np.multiply(u, np.sqrt(s_pinv_np))
 
     return U, np.sum(np.log(d)), len(d)

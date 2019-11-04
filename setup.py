@@ -8,10 +8,10 @@ setup(
         description='linear and nonlinear Bayesian filters',
         packages = find_packages(),
         install_requires=[
-            'sympy',
             'matplotlib',
             'scipy',
             'numpy',
             'numba',
+            'chaospy',
          ],
    )
