@@ -11,7 +11,8 @@ from .stats import logpdf
 
 def npas(self, X=None, means=None, covs=None, get_eps=None, ngen=100, npop=10, bound_sigma=4, maxeval=0, ftol=None, method_loc=None, method_glob=None, seed=0, verbose=True):
     """Nonlinear Path-Adjustment Smoother. 
-    Assumes that either, X (a time series of ensembles) is given (or can be taken from the `self` filter object), or the time series means and covs are give. From the filter object, also `eps_cov` (the diagonal matrix of the standard deviations of the shocks) and the transition function `t_func(state, shock_innovations)` must be provided.
+
+    Assumes that either `X` (a time series of ensembles) is given (or can be taken from the filter `self` object), or that the time series means and covs are given. From the filter object, also `eps_cov` (the diagonal matrix of the standard deviations of the shocks) and the transition function `t_func(state, shock_innovations)` must be provided.
     ...
 
     Parameters
