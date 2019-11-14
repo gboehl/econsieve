@@ -22,15 +22,32 @@ class TEnKF(object):
 
         self.N = N
         self.seed = seed
-        self.rule = 'L' if rule is None else rule
 
         self.R = np.eye(self._dim_z)
         self.Q = np.eye(self._dim_x)
         self.P = np.eye(self._dim_x)
 
         self.x = np.zeros(self._dim_x)
+ 
+        try:
+            import chaospy
 
-    def batch_filter(self, Z, init_states=None, seed=None, store=False, calc_ll=False, sobol=False, shuffle=True, verbose=False):
+            def multivariate(mean, cov, size):
+                # rule must be of 'L', 'M', 'H', 'K' or 'S'
+                res = chaospy.MvNormal(mean, cov).sample(size=size, rule=rule or 'S')
+                res = np.moveaxis(res, 0, res.ndim-1) 
+                np.random.shuffle(res)
+                return res
+
+        except ModuleNotFoundError as e:
+            print(str(e)+". Low-discrepancy series will not be used. This is likely to cause a loss in precision.")
+            def multivariate(mean, cov, size):
+                return np.random.multivariate_normal(mean=mean, cov=cov, size=size)
+
+        self.multivariate = multivariate
+
+
+    def batch_filter(self, Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False):
         """Batch filter.
 
         Runs the TEnKF on the complete dataset.
@@ -52,37 +69,16 @@ class TEnKF(object):
 
         ll = 0
 
-        if seed is not None: 
-            self.seed = seed
-
-        if self.seed is not None:
-            np.random.seed(self.seed)
+        if seed or self.seed:
+            np.random.seed(seed or self.seed)
 
         means = np.empty((Z.shape[0], _dim_x))
         covs = np.empty((Z.shape[0], _dim_x, _dim_x))
-
         Y = np.empty((_dim_z, N))
 
-        if sobol:
-            import chaospy as cp
-
-            epss = cp.MvNormal(np.zeros(self._dim_z), self.Q).sample(size=(len(Z),self.N), rule=self.rule)
-            mus = cp.MvNormal(np.zeros(self._dim_z), self.R).sample(size=(len(Z),self.N), rule=self.rule)
-            epss = np.moveaxis(epss,0,2)
-            mus = np.moveaxis(mus,0,2)
-            if shuffle:
-                np.random.shuffle(epss)
-                np.random.shuffle(mus)
-            X = cp.MvNormal(self.x, self.P).sample(size=self.N, rule=self.rule)
-        else:
-            mus = np.random.multivariate_normal(
-                mean=np.zeros(self._dim_z), cov=self.R, size=(len(Z), self.N))
-            epss = np.random.multivariate_normal(
-                mean=np.zeros(self._dim_z), cov=self.Q, size=(len(Z), self.N))
-            X = np.random.multivariate_normal(mean=self.x, cov=P, size=N).T
-
-        if init_states is not None:
-            X = init_states
+        mus = self.multivariate(mean=np.zeros(self._dim_z), cov=self.R, size=(len(Z), self.N))
+        epss = self.multivariate(mean=np.zeros(self._dim_z), cov=self.Q, size=(len(Z), self.N))
+        X = init_states or self.multivariate(mean=self.x, cov=P, size=N).T
 
         self.Xs = np.empty((Z.shape[0], _dim_x, N))
 
@@ -131,8 +127,6 @@ class TEnKF(object):
 
         for i in reversed(range(self.Xs.shape[0] - 1)):
 
-            # J = self.X_bars[i] @ self.X_bar_priors[i+1].T @ nl.pinv(
-                # self.X_bar_priors[i+1] @ self.X_bar_priors[i+1].T, rcond=rcond)
             J = self.X_bars[i] @ tinv(self.X_bar_priors[i+1])
             S = self.Xs[i] + J @ (S - self.X_priors[i+1])
 
