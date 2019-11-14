@@ -34,7 +34,7 @@ class TEnKF(object):
 
             def multivariate(mean, cov, size):
                 # rule must be of 'L', 'M', 'H', 'K' or 'S'
-                res = chaospy.MvNormal(mean, cov).sample(size=size, rule=rule or 'S')
+                res = chaospy.MvNormal(mean, cov).sample(size=size, rule=rule or 'L')
                 res = np.moveaxis(res, 0, res.ndim-1) 
                 np.random.shuffle(res)
                 return res

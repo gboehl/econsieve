@@ -3,7 +3,6 @@
 
 import time
 import numpy as np
-import pygmo as pg
 from tqdm import tqdm
 from grgrlib.stuff import GPP, timeprint
 from .stats import logpdf
@@ -51,6 +50,7 @@ def npas(self, X=None, means=None, covs=None, get_eps=None, ngen=100, npop=10, b
     flag : bool
         an error flag of the transition function
     """
+    import pygmo as pg
 
     if verbose:
         st = time.time()
