@@ -202,6 +202,79 @@ class KalmanFilter(object):
         self.x_post = self.x.copy()
         self.P_post = self.P.copy()
 
+
+    def guess(self, z, R=None, H=None):
+        """
+        Guess new state vector, but don't do the update.
+
+        If z is None, nothing is computed. However, x_post and P_post are
+        updated with the prior (x_prior, P_prior), and self.z is set to None.
+
+        Parameters
+        ----------
+        z : (dim_z, 1): array_like
+            measurement for this update. z can be a scalar if dim_z is 1,
+            otherwise it must be convertible to a column vector.
+
+        R : np.array, scalar, or None
+            Optionally provide R to override the measurement noise for this
+            one call, otherwise  self.R will be used.
+
+        H : np.array, or None
+            Optionally provide H to override the measurement function for this
+            one call, otherwise self.H will be used.
+        """
+
+        # set to None to force recompute
+        self._mahalanobis = None
+
+        if z is None:
+            self.z = np.array([[None]*self.dim_z]).T
+            self.x_post = self.x.copy()
+            self.P_post = self.P.copy()
+            self.y = zeros((self.dim_z, 1))
+            return
+
+        z = reshape_z(z, self.dim_z, self.x.ndim)
+
+        if R is None:
+            R = self.R
+        elif isscalar(R):
+            R = eye(self.dim_z) * R
+
+        if H is None:
+            H = self.H
+
+        # y = z - Hx
+        # error (residual) between measurement and prediction
+        self.y = z - dot(H[0], self.x) - H[1].reshape(-1,1)
+
+        # common subexpression for speed
+        PHT = dot(self.P, H[0].T)
+
+        # S = HPH' + R
+        # project system uncertainty into measurement space
+        self.S = dot(H[0], PHT) + R
+        self.SI = self.inv(self.S)
+        # K = PH'inv(S)
+        # map system uncertainty into kalman gain
+        self.K = dot(PHT, self.SI)
+
+        # x = x + Ky
+        # predict new x with residual scaled by the kalman gain
+        self.x_guess = self.x + dot(self.K, self.y)
+
+        # P = (I-KH)P(I-KH)' + KRK'
+        # This is more numerically stable
+        # and works for non-optimal K vs the equation
+        # P = (I-KH)P usually seen in the literature.
+
+        I_KH = self._I - dot(self.K, H[0])
+        self.P_guess = dot(dot(I_KH, self.P), I_KH.T) + dot(dot(self.K, R), self.K.T)
+
+        return self.x_guess, self.P_guess
+
+
     def predict_steadystate(self, u=0, B=None):
         """
         Predict state (prior) using the Kalman filter state propagation
