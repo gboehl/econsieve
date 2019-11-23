@@ -4,7 +4,7 @@
 import time
 import numpy as np
 from tqdm import tqdm
-from grgrlib.stuff import GPP, timeprint
+from grgrlib.core import GPP, timeprint
 from .stats import logpdf
 
 

@@ -4,7 +4,7 @@
 import numpy as np
 import numpy.linalg as nl
 from scipy.optimize import minimize as so_minimize
-from grgrlib.stuff import tinv
+from grgrlib.core import tinv
 from numba import njit
 from .stats import logpdf
 
