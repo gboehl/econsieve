@@ -3,7 +3,6 @@
 
 import numpy as np
 import numpy.linalg as nl
-from scipy.optimize import minimize as so_minimize
 from grgrlib.core import tinv
 from numba import njit
 from .stats import logpdf
@@ -69,8 +68,9 @@ class TEnKF(object):
 
         ll = 0
 
-        if seed or self.seed:
-            np.random.seed(seed or self.seed)
+        # this is necessary for a reason beyond by horizon
+        seed = seed or self.seed or np.random.get_state()[1][0]
+        np.random.seed(seed)
 
         means = np.empty((Z.shape[0], _dim_x))
         covs = np.empty((Z.shape[0], _dim_x, _dim_x))

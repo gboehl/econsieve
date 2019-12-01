@@ -135,7 +135,7 @@ def psd_func(M):
     return U, np.sum(np.log(d)), len(d)
 
 @njit(cache=True)
-def logpdf(x, mean, cov, allow_singular=True):
+def logpdf(x, mean, cov):
 
     _LOG_2PI = np.log(2 * np.pi)
 
