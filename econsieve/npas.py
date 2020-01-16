@@ -63,7 +63,7 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
         return -logpdf(state, mean=mean, cov=cov)
 
     wrap = tqdm if verbose else lambda x: x
-    owrap = wrap if nsamples else lambda x: x
+    owrap = wrap if nsamples > 1 else lambda x: x
     iwrap = wrap if nsamples else lambda x: x
 
     # the smooth version to do this would be rejection sampling. But as max(p(x) / q(x)) is unknown and expensive to evaluate, rejection sampling would likewise be expensive
