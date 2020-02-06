@@ -14,19 +14,19 @@ class TEnKF(object):
 
     def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, rule=None, seed=None):
 
-        self._dim_x = dim_x
-        self._dim_z = dim_z
+        self.dim_x = dim_x
+        self.dim_z = dim_z
         self.t_func = fx
         self.o_func = hx
 
         self.N = N
         self.seed = seed
 
-        self.R = np.eye(self._dim_z)
-        self.Q = np.eye(self._dim_x)
-        self.P = np.eye(self._dim_x)
+        self.R = np.eye(self.dim_z)
+        self.Q = np.eye(self.dim_x)
+        self.P = np.eye(self.dim_x)
 
-        self.x = np.zeros(self._dim_x)
+        self.x = np.zeros(self.dim_x)
  
         try:
             import chaospy
@@ -55,13 +55,13 @@ class TEnKF(object):
         # store time series for later
         self.Z = Z
 
-        _dim_x, _dim_z, N, P, R, Q = self._dim_x, self._dim_z, self.N, self.P, self.R, self.Q
+        dim_x, dim_z, N, P, R, Q = self.dim_x, self.dim_z, self.N, self.P, self.R, self.Q
 
         I1 = np.ones(N)
         I2 = np.eye(N) - np.outer(I1, I1)/N
 
         if store:
-            self.Xs = np.empty((Z.shape[0], _dim_x, N))
+            self.Xs = np.empty((Z.shape[0], dim_x, N))
             self.X_priors = np.empty_like(self.Xs)
             self.X_bars = np.empty_like(self.Xs)
             self.X_bar_priors = np.empty_like(self.Xs)
@@ -72,15 +72,15 @@ class TEnKF(object):
         seed = seed or self.seed or np.random.get_state()[1][0]
         np.random.seed(seed)
 
-        means = np.empty((Z.shape[0], _dim_x))
-        covs = np.empty((Z.shape[0], _dim_x, _dim_x))
-        Y = np.empty((_dim_z, N))
+        means = np.empty((Z.shape[0], dim_x))
+        covs = np.empty((Z.shape[0], dim_x, dim_x))
+        Y = np.empty((dim_z, N))
 
-        mus = self.multivariate(mean=np.zeros(self._dim_z), cov=self.R, size=(len(Z), self.N))
-        epss = self.multivariate(mean=np.zeros(self._dim_z), cov=self.Q, size=(len(Z), self.N))
+        mus = self.multivariate(mean=np.zeros(self.dim_z), cov=self.R, size=(len(Z), self.N))
+        epss = self.multivariate(mean=np.zeros(self.dim_z), cov=self.Q, size=(len(Z), self.N))
         X = init_states or self.multivariate(mean=self.x, cov=P, size=N).T
 
-        self.Xs = np.empty((Z.shape[0], _dim_x, N))
+        self.Xs = np.empty((Z.shape[0], dim_x, N))
 
         for nz, z in enumerate(Z):
 
@@ -110,7 +110,7 @@ class TEnKF(object):
                 # cummulate ll
                 z_mean = np.mean(Y, axis=1)
                 y = z - z_mean
-                ll += logpdf(x=y, mean=np.zeros(_dim_z), cov=S)
+                ll += logpdf(x=y, mean=np.zeros(dim_z), cov=S)
             else:
                 self.Xs[nz, :, :] = X
 

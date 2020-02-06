@@ -75,7 +75,7 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
         np.random.shuffle(X)
 
     # preallocate
-    res = np.empty((nsamples, len(self.Z)-1,self._dim_z))
+    res = np.empty((nsamples, len(self.Z)-1,self.dim_z))
     flag = False
 
     for n,s in enumerate(owrap(X[:nsamples])):
@@ -86,7 +86,7 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
 
             func = lambda eps: target(eps, x, s[t+1], covs[t+1])
 
-            eps0 = get_eps(x, s[t+1])/bound/2 if get_eps else np.zeros(self._dim_z)
+            eps0 = get_eps(x, s[t+1])/bound/2 if get_eps else np.zeros(self.dim_z)
 
             res_cma = cmaes(func, eps0, 0.1, verbose=0, frtol=frtol, **cmaes_args)
             eps = res_cma[0]*bound*2
