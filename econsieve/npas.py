@@ -87,7 +87,7 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
 
             eps0 = get_eps(x, s[t+1])/bound/2 if get_eps else np.zeros(self.dim_z)
 
-            res_cma = cmaes(func, eps0, 0.1, verbose=verbose-1>0, frtol=frtol, **cmaes_args)
+            res_cma = cmaes(func, eps0, 0.1, verbose=verbose > 1, frtol=frtol, **cmaes_args)
             eps = res_cma[0]*bound*2
 
             x, fflag = self.t_func(x, noise=eps)
