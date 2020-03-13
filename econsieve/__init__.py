@@ -16,6 +16,9 @@ This is licensed under an MIT license. See the readme.MD file
 for more information.
 """
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 from .kalman_filter import *
 from .sigma_points import *
 from .ukf import *
