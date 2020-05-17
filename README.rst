@@ -1,5 +1,5 @@
 
-EconSieve - Kalman Filter, Unscented Kalman filter, Ensemble Filter and Nonlinear Path-Adjusting Smoother (NPAS)
+EconSieve - Transposed-Ensemble Kalman Filter (TEnKF) and Nonlinear Path-Adjusting Smoother (NPAS)
 ================================================================================================================
 
 ----
