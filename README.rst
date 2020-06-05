@@ -74,8 +74,8 @@ Citation
 
 .. code-block::
 
-    @Unpublished{boehl2020,
-      Title  = {econsieve -- A collection of linear & nonlinear (Kalman) Filters for economic models},
+    @Software{boehl2020,
+      Title  = {econsieve -- A collection of linear and nonlinear (Kalman) Filters for economic models},
       Author = {Gregor Boehl},
       Year   = {2020},
       Url    = {https://github.com/gboehl/econsieve},
