@@ -66,3 +66,28 @@ The package is updated very frequently (find the history of latest commits `here
 .. code-block:: bash
 
    pip install --upgrade git+https://github.com/gboehl/econsieve
+   
+Citation
+--------
+
+**pydsge** is developed by Gregor Boehl to simulate, filter, and estimate DSGE models with the zero lower bound on nominal interest rates in various applications (see [here](https://gregorboehl.com) for research papers using the package). Please cite it with
+
+.. code-block::
+
+    @Unpublished{boehl2020,
+      Title  = {econsieve -- A collection of linear & nonlinear (Kalman) Filters for economic models},
+      Author = {Gregor Boehl},
+      Year   = {2020},
+      Url    = {https://github.com/gboehl/econsieve},
+    }
+
+We appreciate citations for **pydsge** because it helps us to find out how people have
+been using the package and it motivates further work.
+
+
+
+References
+----------
+
+Boehl, Gregor (2020). `Efficient Solution, Filtering and Estimation of Models with OBCs <http://gregorboehl.com/live/obc_boehl.pdf>`_. *Unpublished Manuscript*
+
