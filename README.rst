@@ -19,7 +19,7 @@ They deserve most of the merits. I just made everything look way more complicate
 * extracting functions from classes and compile them using the @njit flag (speedup)
 * major cleanup
 
-NPAS is build from scratch. I barely did any testing as a standalone filter and just always used it in combination with the 'pydsge', where it works very well.
+NPAS is built from scratch. I barely did any testing as a standalone filter and just always used it in combination with the 'pydsge', where it works very well.
 
 Some very rudimentary documentation `can be found here <https://econsieve.readthedocs.io/en/latest/readme.html>`_.
 
@@ -70,7 +70,7 @@ The package is updated very frequently (find the history of latest commits `here
 Citation
 --------
 
-**pydsge** is developed by Gregor Boehl to simulate, filter, and estimate DSGE models with the zero lower bound on nominal interest rates in various applications (see [here](https://gregorboehl.com) for research papers using the package). Please cite it with
+**pydsge** is developed by Gregor Boehl to simulate, filter, and estimate DSGE models with the zero lower bound on nominal interest rates in various applications (see [here](https://gregorboehl.com) for research papers using the package). Please cite it with:
 
 .. code-block::
 
