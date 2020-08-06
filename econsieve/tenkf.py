@@ -39,7 +39,7 @@ class TEnKF(object):
                 return res
 
         except ModuleNotFoundError as e:
-            print(str(e)+". Low-discrepancy series will not be used. This is likely to cause a loss in precision.")
+            print(str(e)+". Low-discrepancy series will not be used. This might cause losses in precision.")
             def multivariate(mean, cov, size):
                 return np.random.multivariate_normal(mean=mean, cov=cov, size=size)
 
@@ -49,7 +49,7 @@ class TEnKF(object):
     def batch_filter(self, Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False):
         """Batch filter.
 
-        Runs the TEnKF on the complete dataset.
+        Runs the TEnKF on the full dataset.
         """
 
         # store time series for later

@@ -12,7 +12,7 @@ from .stats import logpdf
 def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound_sigma=4, frtol=1e-5, seed=0, verbose=True, **cmaes_args):
     """Nonlinear Path-Adjustment Smoother. 
 
-    Assumes that either `X` (a time series of ensembles) is given (or can be taken from the filter `self` object), or that the time series vals and covs are given. From the filter object, also `eps_cov` (the diagonal matrix of the standard deviations of the shocks) and the transition function `t_func(state, shock_innovations)` must be provided.
+    Assumes that either `X` (a time series of ensembles) is given (or can be taken from the filter `self` object), or that the time series vals and covs are given. From the filter object, also `Q` (the covariance matrix of shocks) and the transition function `t_func(state, shock_innovations)` must be provided.
     ...
 
     Parameters
@@ -35,10 +35,11 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
     covs : array 
         the covariances
     res : array 
-        the smoothed/estimated exogenousinnovations
+        the smoothed/estimated exogenous innovations
     flag : bool
         an error flag of the transition function
     """
+
     if verbose:
         st = time.time()
 
@@ -51,7 +52,7 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
         for i in range(X.shape[1]):
             covs[i, :, :] = np.cov(X[:, i, :].T)
 
-    bound = np.diag(self.eps_cov)*bound_sigma
+    bound = np.sqrt(np.diag(self.Q))*bound_sigma
 
     def target(eps, x, mean, cov):
 
@@ -90,7 +91,7 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
             res_cma = cmaes(func, eps0, 0.1, verbose=verbose > 1, frtol=frtol, **cmaes_args)
             eps = res_cma[0]*bound*2
 
-            x, fflag = self.t_func(x, noise=eps)
+            x, fflag = self.t_func(x, eps)
 
             flag |= fflag
 
