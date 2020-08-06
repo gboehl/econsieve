@@ -1,5 +1,5 @@
 
-EconSieve - Kalman Filter, Unscented Kalman filter, Ensemble Filter and Nonlinear Path-Adjusting Smoother (NPAS)
+EconSieve - Transposed-Ensemble Kalman Filter (TEnKF) and Nonlinear Path-Adjusting Smoother (NPAS)
 ================================================================================================================
 
 ----
@@ -19,7 +19,7 @@ They deserve most of the merits. I just made everything look way more complicate
 * extracting functions from classes and compile them using the @njit flag (speedup)
 * major cleanup
 
-NPAS is build from scratch. I barely did any testing as a standalone filter and just always used it in combination with the 'pydsge', where it works very well.
+NPAS is built from scratch. I barely did any testing as a standalone filter and just always used it in combination with the 'pydsge', where it works very well.
 
 Some very rudimentary documentation `can be found here <https://econsieve.readthedocs.io/en/latest/readme.html>`_.
 
@@ -66,3 +66,28 @@ The package is updated very frequently (find the history of latest commits `here
 .. code-block:: bash
 
    pip install --upgrade git+https://github.com/gboehl/econsieve
+   
+Citation
+--------
+
+**pydsge** is developed by Gregor Boehl to simulate, filter, and estimate DSGE models with the zero lower bound on nominal interest rates in various applications (see [here](https://gregorboehl.com) for research papers using the package). Please cite it with:
+
+.. code-block::
+
+    @Software{boehl2020,
+      Title  = {econsieve -- A collection of linear and nonlinear (Kalman) Filters for economic models},
+      Author = {Gregor Boehl},
+      Year   = {2020},
+      Url    = {https://github.com/gboehl/econsieve},
+    }
+
+We appreciate citations for **pydsge** because it helps us to find out how people have
+been using the package and it motivates further work.
+
+
+
+References
+----------
+
+Boehl, Gregor (2020). `Efficient Solution, Filtering and Estimation of Models with OBCs <http://gregorboehl.com/live/obc_boehl.pdf>`_. *Unpublished Manuscript*
+
