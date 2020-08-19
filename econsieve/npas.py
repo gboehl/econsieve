@@ -43,7 +43,7 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
     if verbose:
         st = time.time()
 
-    ## X must be time series of ensembles of x dimensions
+    # X must be time series of ensembles of x dimensions
     if X is None:
         X = np.rollaxis(self.Ss, 2)
 
@@ -75,20 +75,22 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
         np.random.shuffle(X)
 
     # preallocate
-    res = np.empty((nsamples, len(self.Z)-1,self.dim_z))
+    res = np.empty((nsamples, len(self.Z)-1, self.dim_z))
     flag = False
 
-    for n,s in enumerate(owrap(X[:nsamples])):
+    for n, s in enumerate(owrap(X[:nsamples])):
 
         x = X[n][0]
 
         for t in iwrap(range(s.shape[0] - 1)):
 
-            func = lambda eps: target(eps, x, s[t+1], covs[t+1])
+            def func(eps): return target(eps, x, s[t+1], covs[t+1])
 
-            eps0 = get_eps(x, s[t+1])/bound/2 if get_eps else np.zeros(self.dim_z)
+            eps0 = get_eps(x, s[t+1])/bound / \
+                2 if get_eps else np.zeros(self.dim_z)
 
-            res_cma = cmaes(func, eps0, 0.1, verbose=verbose > 1, frtol=frtol, **cmaes_args)
+            res_cma = cmaes(func, eps0, 0.1, verbose=verbose >
+                            1, frtol=frtol, **cmaes_args)
             eps = res_cma[0]*bound*2
 
             x, fflag = self.t_func(x, eps)
@@ -99,7 +101,8 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
             X[n][t+1] = x
 
         if flag and verbose:
-            print('[npas:]'.ljust(15, ' ')+'Transition function returned error.')
+            print('[npas:]'.ljust(15, ' ') +
+                  'Transition function returned error.')
 
         if not nsamples and verbose:
             print('[npas:]'.ljust(15, ' ')+'Extraction took ',

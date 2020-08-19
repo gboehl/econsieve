@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#pylint: disable=wildcard-import
+# pylint: disable=wildcard-import
 
 """Copyright 2015 Roger R Labbe Jr.
 
@@ -16,12 +16,12 @@ This is licensed under an MIT license. See the readme.MD file
 for more information.
 """
 
+from .npas import npas
+from .tenkf import TEnKF
+from .ukf import *
+from .sigma_points import *
+from .kalman_filter import *
 import logging
 logging.basicConfig(level=logging.INFO)
 
-from .kalman_filter import *
-from .sigma_points import *
-from .ukf import *
-from .tenkf import TEnKF
-from .npas import npas
 TEnKF.npas = npas

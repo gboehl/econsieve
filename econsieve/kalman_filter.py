@@ -11,6 +11,7 @@ from numpy import dot, zeros, eye, isscalar, shape
 import numpy.linalg as linalg
 from .stats import logpdf
 
+
 def reshape_z(z, dim_z, ndim):
     """ ensure z is a (dim_z, 1) shaped vector"""
 
@@ -19,7 +20,8 @@ def reshape_z(z, dim_z, ndim):
         z = z.T
 
     if z.shape != (dim_z, 1):
-        raise ValueError('z must be convertible to shape ({}, 1)'.format(dim_z))
+        raise ValueError(
+            'z must be convertible to shape ({}, 1)'.format(dim_z))
 
     if ndim == 1:
         z = z[:, 0]
@@ -28,6 +30,7 @@ def reshape_z(z, dim_z, ndim):
         z = z[0, 0]
 
     return z
+
 
 class KalmanFilter(object):
 
@@ -50,16 +53,17 @@ class KalmanFilter(object):
         self.F = eye(dim_x)               # state transition matrix
         self.H = zeros((dim_z, dim_x))    # Measurement function
         self.R = eye(dim_z)               # state uncertainty
-        self.M = np.zeros((dim_z, dim_z)) # process-measurement cross correlation
+        # process-measurement cross correlation
+        self.M = np.zeros((dim_z, dim_z))
         self.z = np.array([[None]*self.dim_z]).T
 
         # gain and residual are computed during the innovation step. We
         # save them so that in case you want to inspect them for various
         # purposes
-        self.K = np.zeros((dim_x, dim_z)) # kalman gain
+        self.K = np.zeros((dim_x, dim_z))  # kalman gain
         self.y = zeros((dim_z, 1))
-        self.S = np.zeros((dim_z, dim_z)) # system uncertainty
-        self.SI = np.zeros((dim_z, dim_z)) # inverse system uncertainty
+        self.S = np.zeros((dim_z, dim_z))  # system uncertainty
+        self.SI = np.zeros((dim_z, dim_z))  # inverse system uncertainty
 
         # identity matrix. Do not alter this.
         self._I = np.eye(dim_x)
@@ -78,7 +82,6 @@ class KalmanFilter(object):
         self._mahalanobis = None
 
         self.inv = np.linalg.inv
-
 
     def predict(self, u=None, B=None, F=None, Q=None):
         """
@@ -127,7 +130,6 @@ class KalmanFilter(object):
         self.x_prior = self.x.copy()
         self.P_prior = self.P.copy()
 
-
     def update(self, z, R=None, H=None):
         """
         Add a new measurement (z) to the Kalman filter.
@@ -172,7 +174,7 @@ class KalmanFilter(object):
 
         # y = z - Hx
         # error (residual) between measurement and prediction
-        self.y = z - dot(H[0], self.x) - H[1].reshape(-1,1)
+        self.y = z - dot(H[0], self.x) - H[1].reshape(-1, 1)
 
         # common subexpression for speed
         PHT = dot(self.P, H[0].T)
@@ -201,7 +203,6 @@ class KalmanFilter(object):
         self.z = deepcopy(z)
         self.x_post = self.x.copy()
         self.P_post = self.P.copy()
-
 
     def guess(self, z, R=None, H=None):
         """
@@ -247,7 +248,7 @@ class KalmanFilter(object):
 
         # y = z - Hx
         # error (residual) between measurement and prediction
-        self.y = z - dot(H[0], self.x) - H[1].reshape(-1,1)
+        self.y = z - dot(H[0], self.x) - H[1].reshape(-1, 1)
 
         # common subexpression for speed
         PHT = dot(self.P, H[0].T)
@@ -270,10 +271,10 @@ class KalmanFilter(object):
         # P = (I-KH)P usually seen in the literature.
 
         I_KH = self._I - dot(self.K, H[0])
-        self.P_guess = dot(dot(I_KH, self.P), I_KH.T) + dot(dot(self.K, R), self.K.T)
+        self.P_guess = dot(dot(I_KH, self.P), I_KH.T) + \
+            dot(dot(self.K, R), self.K.T)
 
         return self.x_guess, self.P_guess
-
 
     def predict_steadystate(self, u=0, B=None):
         """
@@ -394,7 +395,7 @@ class KalmanFilter(object):
         if us is None:
             us = [0] * n
 
-        self.P  = self.init_P
+        self.P = self.init_P
 
         # mean estimates from Kalman Filter
         if self.x.ndim == 1:
@@ -405,8 +406,8 @@ class KalmanFilter(object):
         # state covariances from Kalman Filter
         covariances = zeros((n, self.dim_x, self.dim_x))
 
-        self.x = zeros((self.dim_x, 1)) 
-        ll  = 0
+        self.x = zeros((self.dim_x, 1))
+        ll = 0
 
         if update_first:
             for i, (z, F, Q, H, R, B, u) in enumerate(zip(zs, Fs, Qs, Hs, Rs, Bs, us)):
@@ -417,7 +418,8 @@ class KalmanFilter(object):
 
                 self.predict(u=u, B=B, F=F, Q=Q)
 
-                ll += logpdf(x=self.y.squeeze(), mean=np.zeros(self.dim_z), cov=self.S)
+                ll += logpdf(x=self.y.squeeze(),
+                             mean=np.zeros(self.dim_z), cov=self.S)
 
                 if saver is not None:
                     saver.save()
@@ -430,7 +432,8 @@ class KalmanFilter(object):
                 means[i, :] = self.x
                 covariances[i, :, :] = self.P
 
-                ll += logpdf(x=self.y.squeeze(), mean=np.zeros(self.dim_z), cov=self.S)
+                ll += logpdf(x=self.y.squeeze(),
+                             mean=np.zeros(self.dim_z), cov=self.S)
 
                 if saver is not None:
                     saver.save()
@@ -511,7 +514,7 @@ class KalmanFilter(object):
         for k in range(n-2, -1, -1):
             Pp[k] = dot(dot(Fs[k+1], P[k]), Fs[k+1].T) + Qs[k+1]
 
-            K[k]  = dot(dot(P[k], Fs[k+1].T), inv(Pp[k]))
+            K[k] = dot(dot(P[k], Fs[k+1].T), inv(Pp[k]))
             x[k] += dot(K[k], x[k+1] - dot(Fs[k+1], x[k]))
             P[k] += dot(dot(K[k], P[k+1] - Pp[k]), K[k].T)
 
@@ -626,7 +629,8 @@ class KalmanFilter(object):
         mahalanobis : float
         """
         if self._mahalanobis is None:
-            self._mahalanobis = sqrt(float(dot(dot(self.y.T, self.SI), self.y)))
+            self._mahalanobis = sqrt(
+                float(dot(dot(self.y.T, self.SI), self.y)))
         return self._mahalanobis
 
     def __repr__(self):

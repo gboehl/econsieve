@@ -161,7 +161,6 @@ def gaussian(x, mean, var, normed=True):
     return g
 
 
-
 def mul(mean1, var1, mean2, var2):
     """
     Multiply Gaussian (mean1, var1) with (mean2, var2) and return the
@@ -262,7 +261,7 @@ def mul_pdf(mean1, var1, mean2, var2):
     var = 1. / (1./var1 + 1./var2)
 
     S = math.exp(-(mean1 - mean2)**2 / (2*(var1 + var2))) / \
-                 math.sqrt(2 * math.pi * (var1 + var2))
+        math.sqrt(2 * math.pi * (var1 + var2))
 
     return mean, var, S
 
@@ -344,7 +343,6 @@ def multivariate_gaussian(x, mu, cov):
 
     nx = len(mu)
     cov = _to_cov(cov, nx)
-
 
     norm_coeff = nx*math.log(2*math.pi) + np.linalg.slogdet(cov)[1]
 
@@ -621,8 +619,8 @@ def plot_gaussian(mean=0., variance=1.,
     there are multiple ways to plot a Gaussian.
     """
 
-    warnings.warn('This function is deprecated. It is poorly named. '\
-                  'A Gaussian can be plotted as a PDF or CDF. This '\
+    warnings.warn('This function is deprecated. It is poorly named. '
+                  'A Gaussian can be plotted as a PDF or CDF. This '
                   'plots a PDF. Use plot_gaussian_pdf() instead,',
                   DeprecationWarning)
     return plot_gaussian_pdf(mean, variance, ax, mean_line, xlim, ylim, xlabel,
@@ -774,7 +772,6 @@ def plot_3d_covariance(mean, cov, std=1.,
     if eigval[0] < 0:
         raise ValueError("covariance matrix must be positive definite")
 
-
     # calculate cartesian coordinates for the ellipsoid surface
     u = np.linspace(0.0, 2.0 * np.pi, N)
     v = np.linspace(0.0, np.pi, N)
@@ -789,9 +786,9 @@ def plot_3d_covariance(mean, cov, std=1.,
 
     data = a + b + c
     N = data.shape[0]
-    x = data[:,   0:N]   + mean[0]
+    x = data[:,   0:N] + mean[0]
     y = data[:,   N:N*2] + mean[1]
-    z = data[:, N*2:]    + mean[2]
+    z = data[:, N*2:] + mean[2]
 
     fig = plt.gcf()
     if ax is None:
@@ -818,7 +815,7 @@ def plot_3d_covariance(mean, cov, std=1.,
         plt.title(title)
 
     #pylint: disable=pointless-statement
-    Axes3D #kill pylint warning about unused import
+    Axes3D  # kill pylint warning about unused import
 
     return ax
 
@@ -840,7 +837,8 @@ def plot_covariance_ellipse(
     plot_covariance
     """
 
-    warnings.warn("deprecated, use plot_covariance instead", DeprecationWarning)
+    warnings.warn("deprecated, use plot_covariance instead",
+                  DeprecationWarning)
     plot_covariance(mean=mean, cov=cov, variance=variance, std=std,
                     ellipse=ellipse, title=title, axis_equal=axis_equal,
                     show_semiaxis=show_semiaxis, facecolor=facecolor,
@@ -865,7 +863,6 @@ def _std_tuple_of(var=None, std=None, interval=None):
         if np.isscalar(std):
             std = (std,)
         return std
-
 
     if interval is not None:
         if np.isscalar(interval):
@@ -1023,8 +1020,8 @@ def plot_covariance(
     if show_semiaxis:
         a = ellipse[0]
         h, w = height/4, width/4
-        plt.plot([x, x+ h*cos(a+np.pi/2)], [y, y + h*sin(a+np.pi/2)])
-        plt.plot([x, x+ w*cos(a)], [y, y + w*sin(a)])
+        plt.plot([x, x + h*cos(a+np.pi/2)], [y, y + h*sin(a+np.pi/2)])
+        plt.plot([x, x + w*cos(a)], [y, y + w*sin(a)])
 
 
 def norm_cdf(x_range, mu, var=1, std=None):
