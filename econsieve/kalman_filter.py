@@ -124,7 +124,7 @@ class KalmanFilter(object):
             self.x = dot(F, self.x)
 
         # P = FPF' + Q
-        self.P = dot(dot(F, self.P), F.T) + Q
+        self.P = F @ self.P @ F.T + Q
 
         # save prior
         self.x_prior = self.x.copy()

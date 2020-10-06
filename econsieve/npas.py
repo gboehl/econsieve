@@ -60,13 +60,13 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
         if flag:
             return np.inf
 
-        return -logpdf(state, mean=mean, cov=cov)
+        return -logpdf(state[0], mean=mean, cov=cov)
 
     wrap = tqdm if verbose else lambda x: x
     owrap = wrap if nsamples > 1 else lambda x: x
     iwrap = wrap if nsamples else lambda x: x
 
-    # the smooth version to do this would be rejection sampling. But as max(p(x) / q(x)) is unknown and expensive to evaluate, rejection sampling would likewise be expensive
+    # the smoothest way to do this would be rejection sampling. But  max(p(x) / q(x)) is unknown and expensive to evaluate
 
     if not nsamples:
         X[0] = np.mean(X, axis=0)
@@ -93,7 +93,8 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
                             1, frtol=frtol, **cmaes_args)
             eps = res_cma[0]*bound*2
 
-            x, fflag = self.t_func(x, eps)
+            xobs, fflag = self.t_func(x, eps)
+            x = xobs[0]
 
             flag |= fflag
 
