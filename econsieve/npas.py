@@ -61,7 +61,7 @@ def npas(self, func=None, X=None, init_states=None, vals=None, covs=None, nsampl
         if flag:
             return np.inf
 
-        return -logpdf(state[0], mean=mean, cov=cov)
+        return -logpdf(state, mean=mean, cov=cov)
 
     wrap = tqdm if verbose else lambda x: x
     owrap = wrap if nsamples > 1 else lambda x: x
