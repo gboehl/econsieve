@@ -9,7 +9,7 @@ from grgrlib.optimize import cmaes
 from .stats import logpdf
 
 
-def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound_sigma=4, frtol=1e-5, seed=0, verbose=True, **cmaes_args):
+def npas(self, func=None, X=None, init_states=None, vals=None, covs=None, nsamples=False, bound_sigma=4, frtol=1e-5, seed=0, verbose=True, **cmaes_args):
     """Nonlinear Path-Adjustment Smoother. 
 
     Assumes that either `X` (a time series of ensembles) is given (or can be taken from the filter `self` object), or that the time series vals and covs are given. From the filter object, also `Q` (the covariance matrix of shocks) and the transition function `t_func(state, shock_innovations)` must be provided.
@@ -23,8 +23,6 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
         the series of ensemble values, probably you want the means. Either this together with the covs, or X has to be provided
     covs : array, optional
         the series of ensemble covariances. Either this together with `vals`, or `X` has to be provided
-    get_eps : function, optional
-        function that, given two states (x, xp), returns a candidate solution of exogenous innovations
     bound_sigma : int, optional
         the number of standard deviations included in the box constraint of the global optimizer
 
@@ -43,6 +41,9 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
     if verbose:
         st = time.time()
 
+    if func is None:
+        func = self.t_func
+
     # X must be time series of ensembles of x dimensions
     if X is None:
         X = np.rollaxis(self.Ss, 2)
@@ -56,7 +57,7 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
 
     def target(eps, x, mean, cov):
 
-        state, flag = self.t_func(x, 2*bound*eps)
+        state, flag = func(x, 2*bound*eps)
         if flag:
             return np.inf
 
@@ -71,8 +72,6 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
     if not nsamples:
         X[0] = np.mean(X, axis=0)
         nsamples = 1
-    else:
-        np.random.shuffle(X)
 
     # preallocate
     res = np.empty((nsamples, len(self.Z)-1, self.dim_z))
@@ -80,33 +79,28 @@ def npas(self, X=None, vals=None, covs=None, get_eps=None, nsamples=False, bound
 
     for n, s in enumerate(owrap(X[:nsamples])):
 
-        x = X[n][0]
+        if init_states is None:
+            x = init = X[n][0]
+        else:
+            x = init = init_states[n]
 
         for t in iwrap(range(s.shape[0] - 1)):
 
-            def func(eps): return target(eps, x, s[t+1], covs[t+1])
+            func_cmaes = lambda eps: target(eps, x, s[t+1], covs[t+1])
 
-            eps0 = get_eps(x, s[t+1])/bound / \
-                2 if get_eps else np.zeros(self.dim_z)
+            eps0 = np.zeros(self.dim_z)
 
-            res_cma = cmaes(func, eps0, 0.1, verbose=verbose >
-                            1, frtol=frtol, **cmaes_args)
+            res_cma = cmaes(func_cmaes, eps0, 0.1, verbose=verbose > 1, frtol=frtol, **cmaes_args)
             eps = res_cma[0]*bound*2
+            res[n][t] = eps
 
-            xobs, fflag = self.t_func(x, eps)
-            x = xobs[0]
-
+            x, fflag = func(x, eps)
             flag |= fflag
 
-            res[n][t] = eps
-            X[n][t+1] = x
-
         if flag and verbose:
-            print('[npas:]'.ljust(15, ' ') +
-                  'Transition function returned error.')
+            print('[npas:]'.ljust(15, ' ') + 'Transition function returned error.')
 
         if not nsamples and verbose:
-            print('[npas:]'.ljust(15, ' ')+'Extraction took ',
-                  timeprint(time.time() - st, 3))
+            print('[npas:]'.ljust(15, ' ')+'Extraction took ', timeprint(time.time() - st, 3))
 
-    return X[:nsamples], covs, res, flag
+    return init, res, flag

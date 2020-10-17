@@ -97,7 +97,7 @@ class TEnKF(object):
                 if self.o_func is None:
                     X[:, i], Y[:, i] = self.t_func(X[:, i], eps)[0]
                 else:
-                    X[:, i] = self.t_func(X[:, i], eps)
+                    X[:, i] = self.t_func(X[:, i], eps)[0]
 
             if self.o_func is not None:
                 Y = self.o_func(X.T).T
