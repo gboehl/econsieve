@@ -7,6 +7,29 @@ from grgrlib.core import tinv
 from numba import njit
 from .stats import logpdf
 
+try:
+    import chaospy
+    def multivariate_dispatch(rule):
+
+        def multivariate(mean, cov, size):
+            # rule must be of 'L', 'M', 'H', 'K' or 'S'
+            res = chaospy.MvNormal(mean, cov).sample(
+                size=size, rule=rule or 'L')
+            res = np.moveaxis(res, 0, res.ndim-1)
+            np.random.shuffle(res)
+            return res
+
+        return multivariate
+
+except ModuleNotFoundError as e:
+
+    def multivariate_dispatch(rule):
+        def multivariate(mean, cov, size):
+            return np.random.multivariate_normal(mean=mean, cov=cov, size=size)
+        return multivariate
+
+    print(str(e)+". Low-discrepancy series will not be used. This might cause a loss in precision.")
+
 
 class TEnKF(object):
 
@@ -27,26 +50,7 @@ class TEnKF(object):
         self.P = np.eye(self.dim_x)
 
         self.x = np.zeros(self.dim_x)
-
-        try:
-            import chaospy
-
-            def multivariate(mean, cov, size):
-                # rule must be of 'L', 'M', 'H', 'K' or 'S'
-                res = chaospy.MvNormal(mean, cov).sample(
-                    size=size, rule=rule or 'L')
-                res = np.moveaxis(res, 0, res.ndim-1)
-                np.random.shuffle(res)
-                return res
-
-        except ModuleNotFoundError as e:
-            print(str(
-                e)+". Low-discrepancy series will not be used. This might cause a loss in precision.")
-
-            def multivariate(mean, cov, size):
-                return np.random.multivariate_normal(mean=mean, cov=cov, size=size)
-
-        self.multivariate = multivariate
+        self.multivariate = multivariate_dispatch(rule)
 
     def batch_filter(self, Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False):
         """Batch filter.
@@ -73,8 +77,11 @@ class TEnKF(object):
 
         ll = 0
 
-        # this is necessary for a reason beyond horizon
-        seed = seed or self.seed or np.random.get_state()[1][0]
+        if seed is not None:
+            pass
+        elif self.seed is not None:
+            seed = self.seed 
+
         np.random.seed(seed)
 
         means = np.empty((Z.shape[0], dim_x))

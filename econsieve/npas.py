@@ -41,6 +41,8 @@ def npas(self, func=None, X=None, init_states=None, vals=None, covs=None, nsampl
     if verbose:
         st = time.time()
 
+    np.random.seed(seed)
+
     if func is None:
         func = self.t_func
 
