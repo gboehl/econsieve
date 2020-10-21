@@ -78,11 +78,9 @@ class TEnKF(object):
         ll = 0
 
         if seed is not None:
-            pass
+            np.random.seed(seed)
         elif self.seed is not None:
-            seed = self.seed 
-
-        np.random.seed(seed)
+            np.random.seed(self.seed)
 
         means = np.empty((Z.shape[0], dim_x))
         covs = np.empty((Z.shape[0], dim_x, dim_x))
