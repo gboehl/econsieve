@@ -4,7 +4,7 @@ EconSieve - Transposed-Ensemble Kalman Filter (TEnKF) and Nonlinear Path-Adjusti
 
 ----
 
-Apart from the smoother, I literally stole most of the code from these two projects:
+Apart from the smoother (`npas`) and TEnKF, I literally stole most of the code from these two projects:
 
 .. code-block:: bash
 

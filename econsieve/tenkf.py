@@ -7,6 +7,29 @@ from grgrlib.core import tinv
 from numba import njit
 from .stats import logpdf
 
+try:
+    import chaospy
+    def multivariate_dispatch(rule):
+
+        def multivariate(mean, cov, size):
+            # rule must be of 'L', 'M', 'H', 'K' or 'S'
+            res = chaospy.MvNormal(mean, cov).sample(
+                size=size, rule=rule or 'L')
+            res = np.moveaxis(res, 0, res.ndim-1)
+            np.random.shuffle(res)
+            return res
+
+        return multivariate
+
+except ModuleNotFoundError as e:
+
+    def multivariate_dispatch(rule):
+        def multivariate(mean, cov, size):
+            return np.random.multivariate_normal(mean=mean, cov=cov, size=size)
+        return multivariate
+
+    print(str(e)+". Low-discrepancy series will not be used. This might cause a loss in precision.")
+
 
 class TEnKF(object):
 
@@ -27,26 +50,7 @@ class TEnKF(object):
         self.P = np.eye(self.dim_x)
 
         self.x = np.zeros(self.dim_x)
-
-        try:
-            import chaospy
-
-            def multivariate(mean, cov, size):
-                # rule must be of 'L', 'M', 'H', 'K' or 'S'
-                res = chaospy.MvNormal(mean, cov).sample(
-                    size=size, rule=rule or 'L')
-                res = np.moveaxis(res, 0, res.ndim-1)
-                np.random.shuffle(res)
-                return res
-
-        except ModuleNotFoundError as e:
-            print(str(
-                e)+". Low-discrepancy series will not be used. This might cause losses in precision.")
-
-            def multivariate(mean, cov, size):
-                return np.random.multivariate_normal(mean=mean, cov=cov, size=size)
-
-        self.multivariate = multivariate
+        self.multivariate = multivariate_dispatch(rule)
 
     def batch_filter(self, Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False):
         """Batch filter.
@@ -57,11 +61,14 @@ class TEnKF(object):
         # store time series for later
         self.Z = Z
 
-        dim_x, dim_z, N, P, R, Q = self.dim_x, self.dim_z, self.N, self.P, self.R, self.Q
+        dim_x = self.dim_x
+        dim_z = self.dim_z
+        N = self.N
 
         I1 = np.ones(N)
         I2 = np.eye(N) - np.outer(I1, I1)/N
 
+        # pre allocate
         if store:
             self.Xs = np.empty((Z.shape[0], dim_x, N))
             self.X_priors = np.empty_like(self.Xs)
@@ -70,9 +77,10 @@ class TEnKF(object):
 
         ll = 0
 
-        # this is necessary for a reason beyond horizon
-        seed = seed or self.seed or np.random.get_state()[1][0]
-        np.random.seed(seed)
+        if seed is not None:
+            np.random.seed(seed)
+        elif self.seed is not None:
+            np.random.seed(self.seed)
 
         means = np.empty((Z.shape[0], dim_x))
         covs = np.empty((Z.shape[0], dim_x, dim_x))
@@ -82,17 +90,17 @@ class TEnKF(object):
             self.dim_z), cov=self.R, size=(len(Z), self.N))
         epss = self.multivariate(mean=np.zeros(
             self.dim_z), cov=self.Q, size=(len(Z), self.N))
-        X = init_states or self.multivariate(mean=self.x, cov=P, size=N).T
+        X = init_states or self.multivariate(mean=self.x, cov=self.P, size=N).T
 
         self.Xs = np.empty((Z.shape[0], dim_x, N))
 
         for nz, z in enumerate(Z):
 
             # predict
-            for i in range(X.shape[1]):
+            for i in range(N):
                 eps = epss[nz, i]
                 if self.o_func is None:
-                    X[:, i], Y[:, i] = self.t_func(X[:, i], eps)
+                    X[:, i], Y[:, i] = self.t_func(X[:, i], eps)[0]
                 else:
                     X[:, i] = self.t_func(X[:, i], eps)[0]
 
@@ -106,7 +114,7 @@ class TEnKF(object):
             X_bar = X @ I2
             Y_bar = Y @ I2
             ZZ = np.outer(z, I1)
-            S = np.cov(Y) + R
+            S = np.cov(Y) + self.R
             X += X_bar @ Y_bar.T @ nl.inv((N-1)*S) @ (ZZ - Y - mus[nz].T)
 
             if store:
