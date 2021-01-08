@@ -4,7 +4,7 @@
 import numpy as np
 import numpy.linalg as nl
 from grgrlib.core import tinv
-from numba import njit
+from numba import njit, prange
 from .stats import logpdf
 
 try:
@@ -30,9 +30,10 @@ except ModuleNotFoundError as e:
 
     print(str(e)+". Low-discrepancy series will not be used. This might cause a loss in precision.")
 
+#jittable column-mean function
 @njit(cache=True, nogil=True, parallel=True, fastmath=True)
 def numba_mean(x):
-    res = np.empty((x.shape[0]))
+    res = np.empty(x.shape[0])
     for r in prange(x.shape[0]):
         res[r] = (np.mean(x[r]))
     return res
@@ -69,13 +70,11 @@ def batch_filter_jittable(Z, N, dim_x, dim_z, mus, epss, X, R, o_func, t_func, s
 
 
     for nz, z in enumerate(Z):
-
         # predict
         for i in prange(N):
-
-
-            eps = epss[nz, i]
-            state, shocks = X[:, i], eps
+            i_ = np.int64(i)
+            eps = epss[nz, i_]
+            state, shocks = X[:, i_], eps
 
             if shocks is None:
                 shocks = np.zeros(dimeps)
@@ -88,11 +87,11 @@ def batch_filter_jittable(Z, N, dim_x, dim_z, mus, epss, X, R, o_func, t_func, s
 
             if o_func is None:
 
-                X[:, i] = q
-                Y[:, i] = pobs
+                X[:, i_] = q
+                Y[:, i_] = pobs
 
             else:
-                X[:, i] = np.hstack((pobs, q))[0]
+                X[:, i_] = np.hstack((pobs, q))[0]
 
         if o_func is not None:
             Y = o_func(X.T).T
@@ -136,9 +135,11 @@ class TEnKF(object):
 
     name = 'TEnKF'
 
-    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, rule=None, seed=None):
 
-        self.dim_x = dim_x
+
+    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, rule=None, seed=None, test=False):
+
+        self.dim_x = np.int64(dim_x)
         self.dim_z = dim_z
         self.t_func = fx
         self.o_func = hx
@@ -152,6 +153,8 @@ class TEnKF(object):
 
         self.x = np.zeros(self.dim_x)
         self.multivariate = multivariate_dispatch(rule)
+
+        self.test = test
 
     def batch_filter_felber(self, Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False):
         """Batch filter.
@@ -186,9 +189,7 @@ class TEnKF(object):
 
         if self.fast:
             batch = batch_jitted #nogil=True, cache=True)
-            #print("jitted!")
         else:
-            #print("NOPE!")
             batch = batch_filter_jittable
 
 
@@ -298,10 +299,10 @@ class TEnKF(object):
         Runs the TEnKF on the full dataset.
         """
         if self.test:
-            return self.batch_filter_felber(Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False)
+            return self.batch_filter_felber(Z, init_states=init_states, seed=seed, store=store, calc_ll=calc_ll, verbose=verbose)
         else:
 
-            return self.batch_filter_boehl(Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False)
+            return self.batch_filter_boehl(Z, init_states=init_states, seed=seed, store=store, calc_ll=calc_ll, verbose=verbose)
 
 
     def rts_smoother(self, means=None, covs=None, rcond=1e-14):
