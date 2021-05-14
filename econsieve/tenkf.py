@@ -3,18 +3,28 @@
 
 import numpy as np
 import numpy.linalg as nl
-from grgrlib.core import tinv
+from grgrlib.la import tinv, nearest_psd
 from numba import njit
 from .stats import logpdf
 
 try:
     import chaospy
+
     def multivariate_dispatch(rule):
 
         def multivariate(mean, cov, size):
             # rule must be of 'L', 'M', 'H', 'K' or 'S'
-            res = chaospy.MvNormal(mean, cov).sample(
-                size=size, rule=rule or 'L')
+
+            try:
+                res = chaospy.MvNormal(mean, cov).sample(
+                    size=size, rule=rule or 'L')
+            except np.linalg.LinAlgError as err:
+                psd_cov = nearest_psd(cov)  # finds nearest PSD matrix
+                if np.max(psd_cov - cov) > 1e-8:
+                    raise err  # raises an error if nearest PSD matrix is very different from original cov
+                res = chaospy.MvNormal(mean, psd_cov).sample(
+                    size=size, rule=rule or 'L')
+
             res = np.moveaxis(res, 0, res.ndim-1)
             np.random.shuffle(res)
             return res

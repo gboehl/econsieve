@@ -88,11 +88,12 @@ def npas(self, func=None, X=None, init_states=None, vals=None, covs=None, nsampl
 
         for t in iwrap(range(s.shape[0] - 1)):
 
-            func_cmaes = lambda eps: target(eps, x, s[t+1], covs[t+1])
+            def func_cmaes(eps): return target(eps, x, s[t+1], covs[t+1])
 
             eps0 = np.zeros(self.dim_z)
 
-            res_cma = cmaes(func_cmaes, eps0, 0.1, verbose=verbose > 1, frtol=frtol, **cmaes_args)
+            res_cma = cmaes(func_cmaes, eps0, 0.1,
+                            verbose=verbose > 1, frtol=frtol, **cmaes_args)
             eps = res_cma[0]*bound*2
             res[n][t] = eps
 
@@ -100,9 +101,11 @@ def npas(self, func=None, X=None, init_states=None, vals=None, covs=None, nsampl
             flag |= fflag
 
         if flag and verbose:
-            print('[npas:]'.ljust(15, ' ') + 'Transition function returned error.')
+            print('[npas:]'.ljust(15, ' ') +
+                  'Transition function returned error.')
 
         if not nsamples and verbose:
-            print('[npas:]'.ljust(15, ' ')+'Extraction took ', timeprint(time.time() - st, 3))
+            print('[npas:]'.ljust(15, ' ')+'Extraction took ',
+                  timeprint(time.time() - st, 3))
 
     return init, res, flag
