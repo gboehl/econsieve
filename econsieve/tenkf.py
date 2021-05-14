@@ -19,11 +19,13 @@ try:
                 res = chaospy.MvNormal(mean, cov).sample(
                     size=size, rule=rule or 'L')
             except np.linalg.LinAlgError as err:
-                psd_cov = nearest_psd(cov)  # finds nearest PSD matrix
-                if np.max(psd_cov - cov) > 1e-8:
-                    raise err  # raises an error if nearest PSD matrix is very different from original cov
-                res = chaospy.MvNormal(mean, psd_cov).sample(
-                    size=size, rule=rule or 'L')
+                # finds nearest PD matrix
+                psd_cov = nearest_psd(cov, eps=1e-12)  
+                # PD implies that EV > 0, hence eps > 0
+                if np.max(np.abs(psd_cov - cov)) > 1e-8:
+                    # raise an error if nearest PSD matrix is very different from original cov
+                    raise type(err)(str(err) + ' This could not be fixed at satisfying accuracy.') 
+                res = chaospy.MvNormal(mean, psd_cov).sample( size=size, rule=rule or 'L')
 
             res = np.moveaxis(res, 0, res.ndim-1)
             np.random.shuffle(res)
