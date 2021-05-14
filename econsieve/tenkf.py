@@ -3,6 +3,7 @@
 
 import numpy as np
 import numpy.linalg as nl
+from scipy.linalg import sqrtm
 from grgrlib.la import tinv, nearest_psd
 from numba import njit
 from .stats import logpdf
@@ -10,23 +11,32 @@ from .stats import logpdf
 try:
     import chaospy
 
+    def init_mv_normal(self, loc=[0, 0], scale=[[1, .5], [.5, 1]]):
+
+        loc = np.asfarray(loc)
+        scale = np.asfarray(scale)
+        assert len(loc) == len(scale)
+        self._repr = {"loc": loc.tolist(), "scale": scale.tolist()}
+
+        try:
+            C = np.linalg.cholesky(scale)
+            Ci = np.linalg.inv(C)
+
+        except np.linalg.LinAlgError as err:
+            C = np.real(sqrtm(scale))
+            Ci = np.linalg.pinv(C)
+
+        chaospy.baseclass.Dist.__init__(self, C=C, Ci=Ci, loc=loc)
+ 
+    # must be patched to allow for a covariance that is only PSD
+    chaospy.MvNormal.__init__ = init_mv_normal
+
     def multivariate_dispatch(rule):
 
         def multivariate(mean, cov, size):
             # rule must be of 'L', 'M', 'H', 'K' or 'S'
 
-            try:
-                res = chaospy.MvNormal(mean, cov).sample(
-                    size=size, rule=rule or 'L')
-            except np.linalg.LinAlgError as err:
-                # finds nearest PD matrix
-                psd_cov = nearest_psd(cov, eps=1e-12)  
-                # PD implies that EV > 0, hence eps > 0
-                if np.max(np.abs(psd_cov - cov)) > 1e-8:
-                    # raise an error if nearest PSD matrix is very different from original cov
-                    raise type(err)(str(err) + ' This could not be fixed at satisfying accuracy.') 
-                res = chaospy.MvNormal(mean, psd_cov).sample( size=size, rule=rule or 'L')
-
+            res = chaospy.MvNormal(mean, cov).sample(size=size, rule=rule or 'L')
             res = np.moveaxis(res, 0, res.ndim-1)
             np.random.shuffle(res)
             return res
