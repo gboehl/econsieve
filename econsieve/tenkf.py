@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import numpy.linalg as nl
 from scipy.linalg import sqrtm
 from grgrlib.la import tinv, nearest_psd
 from numba import njit
@@ -11,25 +10,93 @@ from .stats import logpdf
 try:
     import chaospy
 
-    def init_mv_normal(self, loc=[0, 0], scale=[[1, .5], [.5, 1]]):
+    if hasattr(chaospy.distributions.kernel.baseclass, 'Dist'):
+        def init_mv_normal(self, loc=[0, 0], scale=[[1, .5], [.5, 1]]):
 
-        loc = np.asfarray(loc)
-        scale = np.asfarray(scale)
-        assert len(loc) == len(scale)
-        self._repr = {"loc": loc.tolist(), "scale": scale.tolist()}
+            loc = np.asfarray(loc)
+            scale = np.asfarray(scale)
+            assert len(loc) == len(scale)
+            self._repr = {"loc": loc.tolist(), "scale": scale.tolist()}
 
-        try:
-            C = np.linalg.cholesky(scale)
-            Ci = np.linalg.inv(C)
+            try:
+                C = np.linalg.cholesky(scale)
+                Ci = np.linalg.inv(C)
 
-        except np.linalg.LinAlgError as err:
-            C = np.real(sqrtm(scale))
-            Ci = np.linalg.pinv(C)
+            except np.linalg.LinAlgError as err:
+                C = np.real(sqrtm(scale))
+                Ci = np.linalg.pinv(C)
 
-        chaospy.baseclass.Dist.__init__(self, C=C, Ci=Ci, loc=loc)
- 
-    # must be patched to allow for a covariance that is only PSD
-    chaospy.MvNormal.__init__ = init_mv_normal
+            chaospy.baseclass.Dist.__init__(self, C=C, Ci=Ci, loc=loc)
+     
+        # must be patched to allow for a covariance that is only PSD
+        chaospy.MvNormal.__init__ = init_mv_normal
+
+    else:
+
+        def init_mv_normal(
+                self,
+                dist,
+                mean=0,
+                covariance=1,
+                rotation=None,
+                repr_args=None,
+        ):
+            mean = np.atleast_1d(mean)
+            length = max(len(dist), len(mean), len(covariance))
+
+            exclusion = dist._exclusion.copy()
+            dist = chaospy.Iid(dist, length)
+
+            covariance = np.asarray(covariance)
+
+            rotation = [key for key, _ in sorted(enumerate(dist._dependencies), key=lambda x: len(x[1]))]
+
+            accumulant = set()
+            dependencies = [deps.copy() for deps in dist._dependencies]
+            for idx in rotation:
+                accumulant.update(dist._dependencies[idx])
+                dependencies[idx] = accumulant.copy()
+
+            self._permute = np.eye(len(rotation), dtype=int)[rotation]
+            self._covariance = covariance
+            self._pcovariance = self._permute.dot(covariance).dot(self._permute.T)
+            try:
+                cholesky = np.linalg.cholesky(self._pcovariance)
+                self._fwd_transform = self._permute.T.dot(np.linalg.inv(cholesky))
+
+            except np.linalg.LinAlgError as err:
+                cholesky = np.real(sqrtm(self._pcovariance))
+                self._fwd_transform = self._permute.T.dot(np.linalg.pinv(cholesky))
+
+            self._inv_transform = self._permute.T.dot(cholesky)
+            self._dist = dist
+
+            super(chaospy.distributions.MeanCovarianceDistribution, self).__init__(
+                parameters=dict(mean=mean, covariance=covariance),
+                dependencies=dependencies,
+                rotation=rotation,
+                exclusion=exclusion,
+                repr_args=repr_args,
+            )
+
+        def get_parameters_patched(self, idx, cache, assert_numerical=True):
+            # avoids all functionality not used
+
+            parameters = super(chaospy.distributions.MeanCovarianceDistribution, self).get_parameters(
+                idx, cache, assert_numerical=assert_numerical)
+
+            mean = parameters["mean"]
+
+            mean = mean[self._rotation]
+
+            dim = self._rotation.index(idx)
+
+            return dict(idx=idx, mean=mean, sigma=None, dim=dim, mut=None, cache=cache)
+
+        # must be patched to allow for a covariance that is only PSD
+        chaospy.distributions.MeanCovarianceDistribution.__init__ = init_mv_normal
+        chaospy.distributions.MeanCovarianceDistribution.get_parameters = get_parameters_patched
+
 
     def multivariate_dispatch(rule):
 
@@ -137,7 +204,7 @@ class TEnKF(object):
             Y_bar = Y @ I2
             ZZ = np.outer(z, I1)
             S = np.cov(Y) + self.R
-            X += X_bar @ Y_bar.T @ nl.inv((N-1)*S) @ (ZZ - Y - mus[nz].T)
+            X += X_bar @ Y_bar.T @ np.linalg.inv((N-1)*S) @ (ZZ - Y - mus[nz].T)
 
             if store:
                 self.X_bar_priors[nz, :, :] = X_bar
