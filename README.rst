@@ -2,7 +2,6 @@
 EconSieve - Transposed-Ensemble Kalman Filter (TEnKF) and Nonlinear Path-Adjusting Smoother (NPAS)
 ================================================================================================================
 
-----
 
 Apart from the smoother (`npas`) and TEnKF, I stole quite some of the code from these two projects:
 
@@ -23,8 +22,18 @@ NPAS is built from scratch. I barely did any testing as a standalone filter and 
 
 Some very rudimentary documentation `can be found here <https://econsieve.readthedocs.io/en/latest/readme.html>`_.
 
-Installation with ``pip`` (elegant via ``git``\ )
+Installation with ``pip``
 -------------------------------------------------------
+
+Be sure that you are on Python 3.x. Then it's as simple as:
+
+.. code-block:: bash
+
+   pip install econsieve
+
+
+Installation of bleeding-edge version using ``git``
+---------------------------------------------------
 
 First install ``git``. Linux users just use their respective repos. 
 
@@ -34,7 +43,7 @@ Windows users probably use anaconda and can do
 
    conda install -c anaconda git
 
-in the conda shell `as they kindly tell us here <https://anaconda.org/anaconda/git>`_. Otherwise you can probably get it `here <https://git-scm.com/download/win>`_.
+in the conda shell `as they kindly tell us here <https://anaconda.org/anaconda/git>`_. Otherwise you can probably `get it here <https://git-scm.com/download/win>`_.
 
 Then you can simply do
 
@@ -44,14 +53,7 @@ Then you can simply do
 
 If you run it and it complains about missing packages, please let me know so that I can update the `setup.py`!
 
-Installation with ``pip`` (simple)
---------------------------------------
-
-First, be sure that you are on Python 3.x. Then:
-
-* https://github.com/gboehl/econsieve
-
-The simplest way is to clone the repository and then from within the cloned folder run (Windows user from the Anaconda Prompt):
+Alternatively you can clone the repository and then from within the cloned folder run (Windows user from the Anaconda Prompt):
 
 .. code-block:: bash
 
@@ -65,12 +67,12 @@ The package is updated very frequently (find the history of latest commits `here
 
 .. code-block:: bash
 
-   pip install --upgrade git+https://github.com/gboehl/econsieve
+   pip install --upgrade econsieve
    
 Citation
 --------
 
-**pydsge** is developed by Gregor Boehl to simulate, filter, and estimate DSGE models with the zero lower bound on nominal interest rates in various applications (see [here](https://gregorboehl.com) for research papers using the package). Please cite it with:
+**pydsge** is developed by Gregor Boehl to simulate, filter, and estimate DSGE models with the zero lower bound on nominal interest rates in various applications (see [gregorboehl.com](https://gregorboehl.com) for research papers using the package). Please cite it with:
 
 .. code-block::
 
