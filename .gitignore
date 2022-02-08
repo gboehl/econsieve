@@ -6,4 +6,4 @@ tests/*
 !tests/NK_IR04_rep.mod
 build
 dist
-pynare.egg-info
+*.egg-info
