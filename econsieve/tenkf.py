@@ -4,7 +4,7 @@
 import chaospy
 import numpy as np
 from scipy.linalg import sqrtm
-from grgrlib.la import tinv, nearest_psd
+from grgrlib.linalg import tinv, nearest_psd
 from numba import njit
 from .stats import logpdf
 
