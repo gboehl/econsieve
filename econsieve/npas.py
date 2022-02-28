@@ -4,7 +4,7 @@
 import time
 import numpy as np
 from tqdm import tqdm
-from grgrlib.core import timeprint
+from grgrlib import timeprint
 from grgrlib.optimize import cmaes
 from .stats import logpdf
 
