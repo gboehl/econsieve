@@ -11,7 +11,7 @@ setup(
         long_description_content_type="text/x-rst",
         url="https://github.com/gboehl/econsieve",
         name = 'econsieve',
-        version = '0.0.3',
+        version = '0.0.4',
         author='Gregor Boehl',
         author_email='admin@gregorboehl.com',
         description='linear and nonlinear Bayesian filters',
