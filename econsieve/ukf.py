@@ -111,7 +111,7 @@ class UnscentedKalmanFilter(object):
         self.flag = False
 
     def predict(self, fx=None, **fx_args):
-        r"""
+        """
         Performs the predict step of the UKF. On return, self.x and
         self.P contain the predicted state (x) and covariance (P). '
 

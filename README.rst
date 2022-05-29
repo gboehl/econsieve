@@ -74,13 +74,14 @@ Citation
 
 **pydsge** is developed by Gregor Boehl to simulate, filter, and estimate DSGE models with the zero lower bound on nominal interest rates in various applications (see [gregorboehl.com](https://gregorboehl.com) for research papers using the package). Please cite it with:
 
-.. code-block::
+.. code-block:: latex
 
-    @Software{boehl2020,
-      Title  = {econsieve -- A collection of linear and nonlinear (Kalman) Filters for economic models},
-      Author = {Gregor Boehl},
-      Year   = {2020},
-      Url    = {https://github.com/gboehl/econsieve},
+    @TechReport{boehl2022meth,
+      author={Boehl, Gregor and Strobel, Felix},
+      title={{Estimation of DSGE Models with the Effective Lower Bound}},
+      year=2022,
+      type     = {CRC 224 Discussion Papers},
+      institution={University of Bonn and University of Mannheim, Germany}
     }
 
 We appreciate citations for **pydsge** because it helps us to find out how people have
