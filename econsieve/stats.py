@@ -31,7 +31,6 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spln
 from scipy.stats import norm, multivariate_normal
 
-from numba import njit
 from grgrlib.stats import logpdf
 
 

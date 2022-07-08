@@ -11,10 +11,10 @@ setup(
         long_description_content_type="text/x-rst",
         url="https://github.com/gboehl/econsieve",
         name = 'econsieve',
-        version = '0.0.4',
+        version = '0.0.5',
         author='Gregor Boehl',
         author_email='admin@gregorboehl.com',
-        description='linear and nonlinear Bayesian filters',
+        description='Linear and nonlinear Bayesian filters',
         license='MIT',
         classifiers=[
             "License :: OSI Approved :: MIT License",
@@ -29,5 +29,6 @@ setup(
             'numpy',
             'numba',
             'chaospy',
+            'grgrlib>=0.1.12',
          ],
    )

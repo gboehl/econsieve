@@ -24,7 +24,6 @@ import numpy as np
 from numpy import eye, zeros, dot, isscalar, outer, empty
 from .stats import logpdf
 from warnings import warn
-from numba import njit
 
 
 @njit(cache=True)
