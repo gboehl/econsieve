@@ -5,10 +5,8 @@ EconSieve - Transposed-Ensemble Kalman Filter (TEnKF) and Nonlinear Path-Adjusti
 
 Apart from the smoother (`npas`) and TEnKF, I stole quite some of the code from these two projects:
 
-.. code-block:: bash
-
-   * https://github.com/rlabbe/filterpy
-   * https://github.com/pykalman/pykalman
+* https://github.com/rlabbe/filterpy
+* https://github.com/pykalman/pykalman
 
 
 They deserve most of the merits. I just made everything look way more complicated. Sometimes ``filterpy`` was more efficient, sometimes ``pykalman``. Unfortunately the ``pykalman`` project is orphaned. I tweaked something here and there:
@@ -86,11 +84,3 @@ Citation
 
 We appreciate citations for **pydsge** because it helps us to find out how people have
 been using the package and it motivates further work.
-
-
-
-References
-----------
-
-Boehl, Gregor (2020). `Efficient Solution, Filtering and Estimation of Models with OBCs <http://gregorboehl.com/live/obc_boehl.pdf>`_. *Unpublished Manuscript*
-
