@@ -84,11 +84,3 @@ Citation
 
 We appreciate citations for **pydsge** because it helps us to find out how people have
 been using the package and it motivates further work.
-
-
-
-References
-----------
-
-Boehl, Gregor (2020). `Efficient Solution, Filtering and Estimation of Models with OBCs <http://gregorboehl.com/live/obc_boehl.pdf>`_. *Unpublished Manuscript*
-
