@@ -18,7 +18,7 @@ for more information.
 from __future__ import division
 import numpy as np
 from numba import njit
-from grgrlib import cholesky
+from grgrlib.njitted import cholesky
 
 
 @njit(cache=True)
