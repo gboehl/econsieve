@@ -31,7 +31,7 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spln
 from scipy.stats import norm, multivariate_normal
 
-from grgrlib.stats import logpdf
+from grgrlib.njitted import mvn_logpdf as logpdf 
 
 
 def _validate_vector(u, dtype=None):
