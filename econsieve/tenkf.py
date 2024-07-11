@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+from functools import partial
 from scipy.linalg import sqrtm
 from scipy.stats.qmc import MultivariateNormalQMC, LatinHypercube
 from grgrlib.linalg import tinv, nearest_psd
@@ -11,16 +12,17 @@ from .stats import logpdf
 def multivariate_dispatch(engine):
 
     def multivariate(mean, cov, size):
-
         ndim = len(mean)
-        scov = np.real(sqrtm(cov))
-        dist = MultivariateNormalQMC(mean, cov_root=scov, engine=engine(ndim))
         size = (size,) if isinstance(size, int) else size
         nsample = np.prod(size)
+
+        # define target distribution
+        scov = np.real(sqrtm(cov))
+        dist = MultivariateNormalQMC(mean, cov_root=scov, engine=engine(ndim))
+
+        # draw sample
         res = dist.random(nsample)
-        res = np.reshape(res, (*size, len(mean)))
-        np.random.shuffle(res)
-        return res
+        return np.reshape(res, (*size, ndim))
 
     return multivariate
 
@@ -29,7 +31,7 @@ class TEnKF(object):
 
     name = 'TEnKF'
 
-    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, engine=LatinHypercube, seed=None):
+    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, qmc_engine=None, seed=None):
 
         self.dim_x = dim_x
         self.dim_z = dim_z
@@ -42,9 +44,13 @@ class TEnKF(object):
         self.R = np.eye(self.dim_z)
         self.Q = np.eye(self.dim_x)
         self.P = np.eye(self.dim_x)
-
         self.x = np.zeros(self.dim_x)
-        self.multivariate = multivariate_dispatch(engine)
+
+        # enforce deterministic sampling by default
+        seed_default_qmc_engine = 0 if seed is None else seed
+        qmc_engine = partial(LatinHypercube, seed=seed_default_qmc_engine) if qmc_engine is None else qmc_engine
+        self.multivariate = multivariate_dispatch(qmc_engine)
+
 
     def batch_filter(self, Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False):
         """Batch filter.
