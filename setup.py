@@ -28,7 +28,6 @@ setup(
             'scipy',
             'numpy',
             'numba',
-            'chaospy',
             'grgrlib>=0.1.13',
          ],
    )

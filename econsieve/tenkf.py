@@ -1,109 +1,24 @@
 #!/bin/python
 # -*- coding: utf-8 -*-
 
-import chaospy
 import numpy as np
 from scipy.linalg import sqrtm
+from scipy.stats.qmc import MultivariateNormalQMC, LatinHypercube
 from grgrlib.linalg import tinv, nearest_psd
 from .stats import logpdf
 
 
-if hasattr(chaospy.distributions.kernel.baseclass, 'Dist'):
-    def init_mv_normal(self, loc=[0, 0], scale=[[1, .5], [.5, 1]]):
-
-        loc = np.asfarray(loc)
-        scale = np.asfarray(scale)
-        assert len(loc) == len(scale)
-        self._repr = {"loc": loc.tolist(), "scale": scale.tolist()}
-
-        try:
-            C = np.linalg.cholesky(scale)
-            Ci = np.linalg.inv(C)
-
-        except np.linalg.LinAlgError as err:
-            C = np.real(sqrtm(scale))
-            Ci = np.linalg.pinv(C)
-
-        chaospy.baseclass.Dist.__init__(self, C=C, Ci=Ci, loc=loc)
-
-    # must be patched to allow for a covariance that is only PSD
-    chaospy.MvNormal.__init__ = init_mv_normal
-
-else:
-
-    def init_mv_normal(
-            self,
-            dist,
-            mean=0,
-            covariance=1,
-            rotation=None,
-            repr_args=None,
-    ):
-        mean = np.atleast_1d(mean)
-        length = max(len(dist), len(mean), len(covariance))
-
-        exclusion = dist._exclusion.copy()
-        dist = chaospy.Iid(dist, length)
-
-        covariance = np.asarray(covariance)
-
-        rotation = [key for key, _ in sorted(
-            enumerate(dist._dependencies), key=lambda x: len(x[1]))]
-
-        accumulant = set()
-        dependencies = [deps.copy() for deps in dist._dependencies]
-        for idx in rotation:
-            accumulant.update(dist._dependencies[idx])
-            dependencies[idx] = accumulant.copy()
-
-        self._permute = np.eye(len(rotation), dtype=int)[rotation]
-        self._covariance = covariance
-        self._pcovariance = self._permute.dot(covariance).dot(self._permute.T)
-        try:
-            cholesky = np.linalg.cholesky(self._pcovariance)
-            self._fwd_transform = self._permute.T.dot(np.linalg.inv(cholesky))
-
-        except np.linalg.LinAlgError as err:
-            cholesky = np.real(sqrtm(self._pcovariance))
-            self._fwd_transform = self._permute.T.dot(np.linalg.pinv(cholesky))
-
-        self._inv_transform = self._permute.T.dot(cholesky)
-        self._dist = dist
-
-        super(chaospy.distributions.MeanCovarianceDistribution, self).__init__(
-            parameters=dict(mean=mean, covariance=covariance),
-            dependencies=dependencies,
-            rotation=rotation,
-            exclusion=exclusion,
-            repr_args=repr_args,
-        )
-
-    def get_parameters_patched(self, idx, cache, assert_numerical=True):
-        # avoids all functionality not used
-
-        parameters = super(chaospy.distributions.MeanCovarianceDistribution, self).get_parameters(
-            idx, cache, assert_numerical=assert_numerical)
-
-        mean = parameters["mean"]
-
-        mean = mean[self._rotation]
-
-        dim = self._rotation.index(idx)
-
-        return dict(idx=idx, mean=mean, sigma=None, dim=dim, mut=None, cache=cache)
-
-    # must be patched to allow for a covariance that is only PSD
-    chaospy.distributions.MeanCovarianceDistribution.__init__ = init_mv_normal
-    chaospy.distributions.MeanCovarianceDistribution.get_parameters = get_parameters_patched
-
-
-def multivariate_dispatch(rule):
+def multivariate_dispatch(engine):
 
     def multivariate(mean, cov, size):
-        # rule must be of 'L', 'M', 'H', 'K' or 'S'
 
-        res = chaospy.MvNormal(mean, cov).sample(size=size, rule=rule or 'L')
-        res = np.moveaxis(res, 0, res.ndim-1)
+        ndim = len(mean)
+        scov = np.real(sqrtm(cov))
+        dist = MultivariateNormalQMC(mean, cov_root=scov, engine=engine(ndim))
+        size = (size,) if isinstance(size, int) else size
+        nsample = np.prod(size)
+        res = dist.random(nsample)
+        res = np.reshape(res, (*size, len(mean)))
         np.random.shuffle(res)
         return res
 
@@ -114,7 +29,7 @@ class TEnKF(object):
 
     name = 'TEnKF'
 
-    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, rule=None, seed=None):
+    def __init__(self, N, dim_x=None, dim_z=None, fx=None, hx=None, engine=LatinHypercube, seed=None):
 
         self.dim_x = dim_x
         self.dim_z = dim_z
@@ -129,7 +44,7 @@ class TEnKF(object):
         self.P = np.eye(self.dim_x)
 
         self.x = np.zeros(self.dim_x)
-        self.multivariate = multivariate_dispatch(rule)
+        self.multivariate = multivariate_dispatch(engine)
 
     def batch_filter(self, Z, init_states=None, seed=None, store=False, calc_ll=False, verbose=False):
         """Batch filter.
